@@ -55,6 +55,7 @@ public class BlockOutStream extends OutStream {
 
   private boolean mCanWrite = false;
   private boolean mClosed = false;
+  private boolean mInitializationAttempted;
 
   private String mLocalFilePath;
   private RandomAccessFile mLocalFile;
@@ -123,30 +124,34 @@ public class BlockOutStream extends OutStream {
     } catch (IOException e) {
       LOG.error("Failed to get a local path to cache file.", e);
       return false;
+    } finally {
+      mInitializationAttempted = true;
     }
     return true;
   }
 
   private synchronized void appendCurrentBuffer(byte[] buf, int offset, int length)
       throws IOException {
-    if (mLocalFilePath == null) {
+    if (!mInitializationAttempted) {
       initializeLocalFile();
     }
-    if (mAvailableBytes < length) {
-      long bytesRequested = mTachyonFS.requestSpace(mBlockId, length - mAvailableBytes);
-      if (bytesRequested + mAvailableBytes >= length) {
-        mAvailableBytes += bytesRequested;
-      } else {
-        mCanWrite = false;
-        throw new IOException(String.format("No enough space on local worker: fileId(%d)"
-            + " blockId(%d) requestSize(%d)", mFile.mFileId, mBlockId, length - mAvailableBytes));
+    if (mLocalFile != null) {
+      if (mAvailableBytes < length) {
+        long bytesRequested = mTachyonFS.requestSpace(mBlockId, length - mAvailableBytes);
+        if (bytesRequested + mAvailableBytes >= length) {
+          mAvailableBytes += bytesRequested;
+        } else {
+          mCanWrite = false;
+          throw new IOException(String.format("No enough space on local worker: fileId(%d)"
+              + " blockId(%d) requestSize(%d)", mFile.mFileId, mBlockId, length - mAvailableBytes));
+        }
       }
-    }
 
-    MappedByteBuffer out = mLocalFileChannel.map(MapMode.READ_WRITE, mInFileBytes, length);
-    out.put(buf, offset, length);
-    mInFileBytes += length;
-    mAvailableBytes -= length;
+      MappedByteBuffer out = mLocalFileChannel.map(MapMode.READ_WRITE, mInFileBytes, length);
+      out.put(buf, offset, length);
+      mInFileBytes += length;
+      mAvailableBytes -= length;
+    }
   }
 
   @Override
