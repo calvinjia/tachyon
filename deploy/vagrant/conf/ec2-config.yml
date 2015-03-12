@@ -4,7 +4,7 @@
 Keypair: "aws-east"
 
 # Path to the ssh key
-Key_Path: "~/.ssh/aws-east.pem"
+Key_Path: "~/tools/aws/aws-east.pem"
 
 # RHEL 6.5 Amazon Machine Images
 AMI: "ami-b06a98d8"
@@ -15,7 +15,7 @@ AMI: "ami-b06a98d8"
 # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html
 Security_Group: "test"
 Region: "us-east-1"
-Availability_Zone: "us-east-1b"
+Availability_Zone: "us-east-1a"
 
 Instance_Type: "m1.small"
 
