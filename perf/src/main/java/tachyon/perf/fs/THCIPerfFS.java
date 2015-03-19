@@ -15,20 +15,6 @@
 
 package tachyon.perf.fs;
 
-import com.google.common.base.Throwables;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.log4j.Logger;
-import tachyon.Constants;
-import tachyon.TachyonURI;
-import tachyon.client.ReadType;
-import tachyon.client.WriteType;
-import tachyon.conf.TachyonConf;
-import tachyon.hadoop.TFS;
-import tachyon.perf.PerfConstants;
-import tachyon.thrift.ClientFileInfo;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,7 +22,22 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import com.google.common.base.Throwables;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
+
+import tachyon.Constants;
+import tachyon.client.ReadType;
+import tachyon.client.WriteType;
+import tachyon.conf.TachyonConf;
+import tachyon.hadoop.TFS;
+import tachyon.perf.PerfConstants;
 
 public class THCIPerfFS implements PerfFS {
   protected static final Logger LOG = Logger.getLogger(PerfConstants.PERF_LOGGER_TYPE);
@@ -51,10 +52,11 @@ public class THCIPerfFS implements PerfFS {
   private THCIPerfFS() {
     try {
       mTachyonConf = new TachyonConf();
-      String underFS = mTachyonConf.get(Constants.UNDERFS_ADDRESS, "");
-      URI u = new URI(underFS);
-      mTfs = new TFS();
-      mTfs.initialize(u, new Configuration());
+      Configuration conf = new Configuration();
+      conf.set("fs.tachyon.impl", TFS.class.getName());
+      String masterAddr = mTachyonConf.get(Constants.MASTER_ADDRESS, "");
+      URI u = new URI(masterAddr);
+      mTfs = FileSystem.get(u, conf);
     } catch (IOException e) {
       LOG.error("Failed to get TachyonFS", e);
       Throwables.propagate(e);
@@ -76,16 +78,16 @@ public class THCIPerfFS implements PerfFS {
   /**
    * Create a file. Use the default block size and TRY_CACHE write type.
    *
-   * @param cPath the file's full cPath
+   * @param  path the file's full cPath
    * @return the output stream of the created file
    * @throws IOException
    */
-  public OutputStream create(String cPath) throws IOException {
-    Path path = new Path(cPath);
-    if (!mTfs.exists(path)) {
-      return mTfs.create(path);
+  public OutputStream create(String path) throws IOException {
+    Path p = new Path(path);
+    if (!mTfs.exists(p)) {
+      return mTfs.create(p);
     }
-    return mTfs.append(path);
+    return mTfs.append(p);
   }
 
   /**
@@ -97,11 +99,11 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public OutputStream create(String path, int blockSizeByte) throws IOException {
-    TachyonURI uri = new TachyonURI(path);
-    if (!mTfs.exists(uri)) {
-      mTfs.createFile(uri, blockSizeByte);
+    Path p = new Path(path);
+    if (!mTfs.exists(p)) {
+      mTfs.create(p);
     }
-    return mTfs.getFile(uri).getOutStream(WriteType.TRY_CACHE);
+    return mTfs.append(p);
   }
 
   /**
@@ -115,11 +117,11 @@ public class THCIPerfFS implements PerfFS {
    */
   public OutputStream create(String path, int blockSizeByte, String writeType) throws IOException {
     WriteType type = WriteType.valueOf(writeType);
-    TachyonURI uri = new TachyonURI(path);
-    if (!mTfs.exist(uri)) {
-      mTfs.createFile(uri, blockSizeByte);
+    Path p = new Path(path);
+    if (!mTfs.exists(p)) {
+      mTfs.create(p);
     }
-    return mTfs.getFile(uri).getOutStream(type);
+    return mTfs.append(p);
   }
 
   /**
@@ -130,11 +132,12 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public boolean createEmptyFile(String path) throws IOException {
-    TachyonURI uri = new TachyonURI(path);
-    if (mTfs.exist(uri)) {
+    Path p = new Path(path);
+    if (mTfs.exists(p)) {
       return false;
     }
-    return (mTfs.createFile(uri) != -1);
+    mTfs.create(p).close();
+    return true;
   }
 
   /**
@@ -147,7 +150,7 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public boolean delete(String path, boolean recursive) throws IOException {
-    return mTfs.delete(new TachyonURI(path), recursive);
+    return mTfs.delete(new Path(path), recursive);
   }
 
   /**
@@ -158,7 +161,7 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public boolean exists(String path) throws IOException {
-    return mTfs.exist(new TachyonURI(path));
+    return mTfs.exists(new Path(path));
   }
 
   /**
@@ -169,11 +172,11 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public long getLength(String path) throws IOException {
-    TachyonURI uri = new TachyonURI(path);
-    if (!mTfs.exist(uri)) {
+    Path p = new Path(path);
+    if (!mTfs.exists(p)) {
       return 0;
     }
-    return mTfs.getFile(uri).length();
+    return mTfs.getFileStatus(p).getLen();
   }
 
   /**
@@ -184,11 +187,11 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public boolean isDirectory(String path) throws IOException {
-    TachyonURI uri = new TachyonURI(path);
-    if (!mTfs.exist(uri)) {
+    Path p = new Path(path);
+    if (!mTfs.exists(p)) {
       return false;
     }
-    return mTfs.getFile(uri).isDirectory();
+    return mTfs.getFileStatus(p).isDir();
   }
 
   /**
@@ -199,11 +202,11 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public boolean isFile(String path) throws IOException {
-    TachyonURI uri = new TachyonURI(path);
-    if (!mTfs.exist(uri)) {
+    Path p = new Path(path);
+    if (!mTfs.exists(p)) {
       return false;
     }
-    return mTfs.getFile(uri).isFile();
+    return !mTfs.getFileStatus(p).isDir();
   }
 
   /**
@@ -216,13 +219,13 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public List<String> listFullPath(String path) throws IOException {
-    List<ClientFileInfo> files = mTfs.listStatus(new TachyonURI(path));
+    List<FileStatus> files = Arrays.asList(mTfs.listStatus(new Path(path)));
     if (files == null) {
       return null;
     }
     ArrayList<String> ret = new ArrayList<String>(files.size());
-    for (ClientFileInfo fileInfo : files) {
-      ret.add(fileInfo.path);
+    for (FileStatus fileInfo : files) {
+      ret.add(fileInfo.getPath().toString());
     }
     return ret;
   }
@@ -238,11 +241,11 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public boolean mkdirs(String path, boolean createParent) throws IOException {
-    TachyonURI uri = new TachyonURI(path);
-    if (mTfs.exist(uri)) {
+    Path p = new Path(path);
+    if (mTfs.exists(p)) {
       return false;
     }
-    return mTfs.mkdirs(uri, createParent);
+    return mTfs.mkdirs(p);
   }
 
   /**
@@ -253,11 +256,11 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public InputStream open(String path) throws IOException {
-    TachyonURI uri = new TachyonURI(path);
-    if (!mTfs.exist(uri)) {
+    Path p = new Path(path);
+    if (!mTfs.exists(p)) {
       throw new FileNotFoundException("File not exists " + path);
     }
-    return mTfs.getFile(uri).getInStream(ReadType.NO_CACHE);
+    return mTfs.open(p);
   }
 
   /**
@@ -270,11 +273,11 @@ public class THCIPerfFS implements PerfFS {
    */
   public InputStream open(String path, String readType) throws IOException {
     ReadType type = ReadType.valueOf(readType);
-    TachyonURI uri = new TachyonURI(path);
-    if (!mTfs.exist(uri)) {
+    Path p = new Path(path);
+    if (!mTfs.exists(p)) {
       throw new FileNotFoundException("File not exists " + path);
     }
-    return mTfs.getFile(uri).getInStream(type);
+    return mTfs.open(p);
   }
 
   /**
@@ -286,8 +289,8 @@ public class THCIPerfFS implements PerfFS {
    * @throws IOException
    */
   public boolean rename(String src, String dst) throws IOException {
-    TachyonURI srcURI = new TachyonURI(src);
-    TachyonURI dstURI = new TachyonURI(dst);
-    return mTfs.rename(srcURI, dstURI);
+    Path srcPath = new Path(src);
+    Path dstPath = new Path(dst);
+    return mTfs.rename(srcPath, dstPath);
   }
 }
