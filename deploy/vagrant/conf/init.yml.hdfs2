@@ -11,5 +11,5 @@ Total: 2
 # For VirtualBox: the addresses can be arbitrary
 # For AWS: the addresses should be within the same availability zone
 Addresses:
-    - "192.168.1.11"
-    - "192.168.1.12"
+    - "172.31.16.187"
+    - "172.31.16.186"

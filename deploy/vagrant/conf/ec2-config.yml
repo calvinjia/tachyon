@@ -7,7 +7,10 @@ Keypair: "aws-east"
 Key_Path: "~/tools/aws/aws-east.pem"
 
 # RHEL 6.5 Amazon Machine Images
-AMI: "ami-b06a98d8"
+# KVM
+# AMI: "ami-b06a98d8"
+# HVM
+AMI: "ami-5b697332"
 
 # EC2 network security groups and subnet id
 # Ensure ports used by Tachyon are on
@@ -16,9 +19,8 @@ AMI: "ami-b06a98d8"
 Security_Group: "test"
 Region: "us-east-1"
 Availability_Zone: "us-east-1a"
-
-Instance_Type: "m1.small"
+Instance_Type: "r3.xlarge"
 
 # tag to the instance name
 # to avoid name conflict during mutiple deployment
-Tag: "my-"
+Tag: "m-"
