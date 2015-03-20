@@ -101,7 +101,7 @@ public class THCIPerfFS implements PerfFS {
   public OutputStream create(String path, int blockSizeByte) throws IOException {
     Path p = new Path(path);
     if (!mTfs.exists(p)) {
-      mTfs.create(p);
+      return mTfs.create(p);
     }
     return mTfs.append(p);
   }
@@ -119,7 +119,7 @@ public class THCIPerfFS implements PerfFS {
     WriteType type = WriteType.valueOf(writeType);
     Path p = new Path(path);
     if (!mTfs.exists(p)) {
-      mTfs.create(p);
+      return mTfs.create(p);
     }
     return mTfs.append(p);
   }
