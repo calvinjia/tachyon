@@ -84,10 +84,7 @@ public class THCIPerfFS implements PerfFS {
    */
   public OutputStream create(String path) throws IOException {
     Path p = new Path(path);
-    if (!mTfs.exists(p)) {
-      return mTfs.create(p);
-    }
-    return mTfs.append(p);
+    return mTfs.create(p);
   }
 
   /**
@@ -100,10 +97,7 @@ public class THCIPerfFS implements PerfFS {
    */
   public OutputStream create(String path, int blockSizeByte) throws IOException {
     Path p = new Path(path);
-    if (!mTfs.exists(p)) {
-      return mTfs.create(p);
-    }
-    return mTfs.append(p);
+    return mTfs.create(p);
   }
 
   /**
@@ -118,10 +112,7 @@ public class THCIPerfFS implements PerfFS {
   public OutputStream create(String path, int blockSizeByte, String writeType) throws IOException {
     WriteType type = WriteType.valueOf(writeType);
     Path p = new Path(path);
-    if (!mTfs.exists(p)) {
-      return mTfs.create(p);
-    }
-    return mTfs.append(p);
+    return mTfs.create(p);
   }
 
   /**
