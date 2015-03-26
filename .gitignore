@@ -20,5 +20,4 @@ logs/
 script/
 target/
 **/tachyon-site.properties
-perf/conf/tachyon-perf-env.sh
 perf/result/
