@@ -15,18 +15,6 @@
 
 package tachyon.perf.fs;
 
-import com.google.common.base.Throwables;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.log4j.Logger;
-import tachyon.Constants;
-import tachyon.client.ReadType;
-import tachyon.client.WriteType;
-import tachyon.conf.TachyonConf;
-import tachyon.perf.PerfConstants;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,6 +24,19 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import com.google.common.base.Throwables;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Logger;
+
+import tachyon.Constants;
+import tachyon.client.ReadType;
+import tachyon.client.WriteType;
+import tachyon.conf.TachyonConf;
+import tachyon.perf.PerfConstants;
 
 public class HDFSPerfFS implements PerfFS {
   protected static final Logger LOG = Logger.getLogger(PerfConstants.PERF_LOGGER_TYPE);
