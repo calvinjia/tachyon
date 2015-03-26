@@ -41,5 +41,6 @@ public class PerfConstants {
     if (PERF_UFS.equalsIgnoreCase("HDFS")) {
       return HDFSPerfFS.get();
     }
+    return TachyonPerfFS.get();
   }
 }
