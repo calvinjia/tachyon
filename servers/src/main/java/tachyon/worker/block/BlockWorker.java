@@ -15,8 +15,14 @@
 
 package tachyon.worker.block;
 
+import javax.annotation.Nullable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Optional;
 
+import tachyon.Constants;
 import tachyon.conf.TachyonConf;
 import tachyon.worker.block.allocator.Allocator;
 import tachyon.worker.block.allocator.NaiveAllocator;
@@ -29,6 +35,8 @@ import tachyon.worker.block.meta.BlockWorkerMetadata;
  * Central management for block level operations.
  */
 public class BlockWorker {
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
+
   private final TachyonConf mTachyonConf;
   private final BlockWorkerMetadata mMetadata;
 
@@ -43,12 +51,18 @@ public class BlockWorker {
     mEvictor = new NaiveEvictor(mMetadata);
   }
 
+  @Nullable
   public String createBlock(long userId, long blockId, long blockSize, int tierHint) {
-    Optional<BlockMeta> meta = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
-    if (!meta.isPresent()) {
+    Optional<BlockMeta> optionalMeta = mAllocator.allocateBlock(userId, blockId, blockSize,
+        tierHint);
+    if (!optionalMeta.isPresent()) {
       mEvictor.freeSpace(blockSize, tierHint);
-      meta = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
+      optionalMeta = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
+      if (!optionalMeta.isPresent()) {
+        LOG.error("Cannot create block");
+        return null;
+      }
     }
-    return meta.get().getTmpPath();
+    return optionalMeta.get().getTmpPath();
   }
 }

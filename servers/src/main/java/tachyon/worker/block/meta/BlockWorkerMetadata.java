@@ -18,14 +18,12 @@ package tachyon.worker.block.meta;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.google.common.base.Optional;
-
 import tachyon.Constants;
 import tachyon.conf.TachyonConf;
 
 /**
- * Class that provides metadata operations for the worker. The methods provided by this class are
- * thread safe.
+ * Class that provides data structure for the Worker, Allocator and Evictor. The methods provided
+ * by this class is not thread safe.
  */
 public class BlockWorkerMetadata {
 
@@ -41,13 +39,11 @@ public class BlockWorkerMetadata {
     }
   }
 
-  public Optional<BlockMeta> createBlockInTier(long userId, long blockId, long blockSize, int
-      tierAlias) {
-    StorageTier tier = mTiers.get(tierAlias);
-    if (tier == null) {
-      return Optional.absent();
-    }
-    return tier.createBlock(userId, blockId, blockSize);
+  public StorageTier getTier(int tierAlias) {
+    mTiers.get(tierAlias);
   }
 
+  public long getAvailableSpace() {
+    return mAvailableSpace;
+  }
 }

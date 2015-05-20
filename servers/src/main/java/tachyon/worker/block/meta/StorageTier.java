@@ -50,13 +50,7 @@ public class StorageTier {
     }
   }
 
-  public Optional<BlockMeta> createBlock(long userId, long blockId, long blockSize) {
-    for (StorageDir dir : mStorageDirs) {
-      Optional<BlockMeta> newBlock = dir.createBlock(userId, blockId, blockSize);
-      if (newBlock.isPresent()) {
-        return newBlock;
-      }
-    }
-    return Optional.absent();
+  public Set<StorageDir> getDirs() {
+    return mStorageDirs;
   }
 }

@@ -16,6 +16,7 @@
 package tachyon.worker.block.allocator;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 
 import tachyon.worker.block.meta.BlockMeta;
 import tachyon.worker.block.meta.BlockWorkerMetadata;
@@ -25,14 +26,16 @@ import tachyon.worker.block.meta.BlockWorkerMetadata;
  */
 public class NaiveAllocator implements Allocator {
   private final BlockWorkerMetadata mMetadata;
+  private final AllocatorHelper mHelper;
 
   public NaiveAllocator(BlockWorkerMetadata metadata) {
-    mMetadata = metadata;
+    mMetadata = Preconditions.checkNotNull(metadata);
+    mHelper = new AllocatorHelper(mMetadata);
   }
 
   @Override
   public Optional<BlockMeta> allocateBlock(long userId, long blockId, long blockSize, int
       tierHint) {
-    return mMetadata.createBlockInTier(userId, blockId, blockSize, tierHint);
+    return mHelper.createBlockInTierWithAlias(userId, blockId, blockSize, tierHint);
   }
 }
