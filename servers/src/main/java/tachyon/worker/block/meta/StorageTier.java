@@ -19,7 +19,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.google.common.base.Optional;
-
 import tachyon.Constants;
 import tachyon.conf.TachyonConf;
 import tachyon.util.CommonUtils;
@@ -43,14 +42,69 @@ public class StorageTier {
 
     mStorageDirs = new HashSet<StorageDir>(dirPaths.length);
 
-    for (int i = 0; i < dirPaths.length; i ++) {
+    for (int i = 0; i < dirPaths.length; i++) {
       int index = i >= dirQuotas.length ? dirQuotas.length - 1 : i;
       long capacity = CommonUtils.parseSpaceSize(dirQuotas[index]);
       mStorageDirs.add(new StorageDir(capacity, dirPaths[i]));
     }
   }
 
-  public Set<StorageDir> getDirs() {
+  public long getCapacityBytes() {
+    long capacityBytes = 0;
+    for (StorageDir dir : mStorageDirs) {
+      capacityBytes += dir.getCapacityBytes();
+    }
+    return capacityBytes;
+  }
+
+  public long getAvailableBytes() {
+    long availableBytes = 0;
+    for (StorageDir dir : mStorageDirs) {
+      availableBytes += dir.getAvailableBytes();
+    }
+    return availableBytes;
+  }
+
+  public Set<StorageDir> getStorageDirs() {
     return mStorageDirs;
   }
+
+  public boolean addStorageDir(StorageDir dir) {
+    return mStorageDirs.add(dir);
+  }
+
+  public boolean removeStorageDir(StorageDir dir) {
+    return mStorageDirs.remove(dir);
+  }
+
+  public synchronized Optional<BlockMeta> getBlock(long blockId) {
+    for (StorageDir dir : mStorageDirs) {
+      Optional<BlockMeta> optionalBlock = dir.getBlock(blockId);
+      if (optionalBlock.isPresent()) {
+        return optionalBlock;
+      }
+    }
+    return Optional.absent();
+  }
+
+  public synchronized Optional<BlockMeta> addBlock(long userId, long blockId,
+                                                   long blockSize) {
+    for (StorageDir dir : mStorageDirs) {
+      Optional<BlockMeta> optionalBlock = dir.addBlock(userId, blockId, blockSize);
+      if (optionalBlock.isPresent()) {
+        return optionalBlock;
+      }
+    }
+    return Optional.absent();
+  }
+
+  public synchronized boolean removeBlock(long blockId) {
+    for (StorageDir dir : mStorageDirs) {
+      if (dir.hasBlock(blockId)) {
+        return dir.removeBlock(blockId);
+      }
+    }
+    return false;
+  }
+
 }

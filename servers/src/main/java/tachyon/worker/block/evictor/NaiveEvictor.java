@@ -15,12 +15,12 @@
 
 package tachyon.worker.block.evictor;
 
-import tachyon.worker.block.meta.BlockWorkerMetadata;
+import tachyon.worker.block.BlockMetadataManager;
 
 public class NaiveEvictor implements Evictor {
-  private final BlockWorkerMetadata mMetadata;
+  private final BlockMetadataManager mMetadata;
 
-  public NaiveEvictor(BlockWorkerMetadata metadata) {
+  public NaiveEvictor(BlockMetadataManager metadata) {
     mMetadata = metadata;
   }
 

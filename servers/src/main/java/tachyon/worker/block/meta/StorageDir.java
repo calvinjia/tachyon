@@ -19,14 +19,21 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import tachyon.Constants;
 
 /**
  * Represents one isolated storage unit. The methods provided by this class are thread safe.
  */
 public class StorageDir {
-  private Map<Long, BlockMeta> mIdToBlocksMap;
-  private Map<Long, Set<Long>> mUsersToBlocksMap;
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
+
+  private Map<Long, BlockMeta> mBlockIdToBlockMap;
+  private Map<Long, Set<Long>> mUserIdToBlocksMap;
   private long mCapacityBytes;
   private long mAvailableBytes;
   private String mDirPath;
@@ -35,8 +42,8 @@ public class StorageDir {
     mCapacityBytes = capacityBytes;
     mAvailableBytes = capacityBytes;
     mDirPath = dirPath;
-    mIdToBlocksMap = new HashMap<Long, BlockMeta>(200);
-    mUsersToBlocksMap = new HashMap<Long, Set<Long>>(20);
+    mBlockIdToBlockMap = new HashMap<Long, BlockMeta>(200);
+    mUserIdToBlocksMap = new HashMap<Long, Set<Long>>(20);
   }
 
   public long getCapacityBytes() {
@@ -52,21 +59,62 @@ public class StorageDir {
   }
 
   public boolean hasBlock(long blockId) {
-    return mIdToBlocksMap.containsKey(blockId)
+    return mBlockIdToBlockMap.containsKey(blockId)
   }
 
-  public boolean addBlock(long userId, long blockId, long blockSize) {
-    if (hasBlock(blockId)) {
-      return false;
+  public Optional<BlockMeta> getBlock(long blockId) {
+    if (!hasBlock(blockId)) {
+      return Optional.absent();
     }
-    Set<Long> userBlocks = mUsersToBlocksMap.get(userId);
+    return Optional.of(mBlockIdToBlockMap.get(blockId));
+  }
+
+  public synchronized Optional<BlockMeta> addBlock(long userId, long blockId,
+                                                   long blockSize) {
+    if (getAvailableBytes() < blockSize) {
+      LOG.error("Fail to create blockId {} in dir {}: {} bytes required, but {} bytes available",
+          blockId, toString(), blockSize, getAvailableBytes());
+      return Optional.absent();
+    }
+    if (hasBlock(blockId)) {
+      LOG.error("Fail to create blockId {} in dir {}: blockId exists", blockId, toString());
+      return Optional.absent();
+    }
+    Set<Long> userBlocks = mUserIdToBlocksMap.get(userId);
     if (null == userBlocks) {
-      mUsersToBlocksMap.put(userId, Sets.newHashSet(blockId));
+      mUserIdToBlocksMap.put(userId, Sets.newHashSet(blockId));
     } else {
       userBlocks.add(blockId);
     }
+    BlockMeta block = new BlockMeta(blockId, blockSize, getDirPath());
+    mBlockIdToBlockMap.put(userId, block);
     mCapacityBytes += blockSize;
     mAvailableBytes -= blockSize;
-    return true;
+    Preconditions.checkState(mAvailableBytes >= 0, "Available bytes should always be non-negative");
+    return Optional.of(block);
+  }
+
+  public synchronized boolean removeBlock(long blockId) {
+    if (!hasBlock(blockId)) {
+      return false;
+    }
+    BlockMeta block = mBlockIdToBlockMap.remove(blockId);
+    Preconditions.checkNotNull(block);
+    for (Map.Entry<Long, Set<Long>> entry : mUserIdToBlocksMap.entrySet()) {
+      Long userId = entry.getKey();
+      Set<Long> userBlocks = entry.getValue();
+      if (userBlocks.contains(blockId)) {
+        Preconditions.checkState(userBlocks.remove(blockId));
+        if (userBlocks.isEmpty()) {
+          mUserIdToBlocksMap.remove(userId);
+        }
+        mCapacityBytes -= block.getBlockSize();
+        mAvailableBytes += block.getBlockSize();
+        Preconditions.checkState(mCapacityBytes >= 0, "Capacity bytes should always be " +
+            "non-negative");
+        return true;
+      }
+    }
+    return false;
   }
 }

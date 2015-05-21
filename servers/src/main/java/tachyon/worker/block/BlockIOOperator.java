@@ -4,36 +4,37 @@
  * copyright ownership. The ASF licenses this file to You under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- *
+ * 
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
 
-package tachyon.worker.block.allocator;
+package tachyon.worker.block;
 
-import com.google.common.base.Optional;
+import java.io.File;
+
 import com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import tachyon.worker.block.meta.BlockMeta;
-import tachyon.worker.block.BlockMetadataManager;
+import tachyon.Constants;
 
 /**
- * Naive allocation strategy
+ * A class operates on raw block data. This class is not thread-safe.
  */
-public class NaiveAllocator implements Allocator {
-  private final BlockMetadataManager mMetadata;
+public class BlockIOOperator {
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
+  private final String mBlockFilePath;
 
-  public NaiveAllocator(BlockMetadataManager metadata) {
-    mMetadata = Preconditions.checkNotNull(metadata);
+  public BlockIOOperator(String path) {
+    mBlockFilePath = Preconditions.checkNotNull(path);
   }
 
-  @Override
-  public Optional<BlockMeta> allocateBlock(long userId, long blockId, long blockSize, int
-      tierHint) {
-    return mMetadata.addBlockInTier(userId, blockId, blockSize, tierHint);
+  public boolean delete() {
+    return new File(mBlockFilePath).delete();
   }
 }

@@ -15,8 +15,6 @@
 
 package tachyon.worker.block;
 
-import javax.annotation.Nullable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +27,6 @@ import tachyon.worker.block.allocator.NaiveAllocator;
 import tachyon.worker.block.evictor.Evictor;
 import tachyon.worker.block.evictor.NaiveEvictor;
 import tachyon.worker.block.meta.BlockMeta;
-import tachyon.worker.block.meta.BlockWorkerMetadata;
 
 /**
  * Central management for block level operations.
@@ -38,31 +35,88 @@ public class BlockWorker {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   private final TachyonConf mTachyonConf;
-  private final BlockWorkerMetadata mMetadata;
+  private final BlockMetadataManager mMetaManager;
 
   private final Allocator mAllocator;
   private final Evictor mEvictor;
 
   public BlockWorker() {
     mTachyonConf = new TachyonConf();
-    mMetadata = new BlockWorkerMetadata(mTachyonConf);
-
-    mAllocator = new NaiveAllocator(mMetadata);
-    mEvictor = new NaiveEvictor(mMetadata);
+    mMetaManager = new BlockMetadataManager(mTachyonConf);
+    mAllocator = new NaiveAllocator(mMetaManager);
+    mEvictor = new NaiveEvictor(mMetaManager);
   }
 
-  @Nullable
-  public String createBlock(long userId, long blockId, long blockSize, int tierHint) {
-    Optional<BlockMeta> optionalMeta = mAllocator.allocateBlock(userId, blockId, blockSize,
-        tierHint);
-    if (!optionalMeta.isPresent()) {
+  /**
+   * Get the block given its block id.
+   *
+   * @param blockId the id of the block
+   * @return the path of the block, or absent if not found.
+   */
+  public Optional<String> getBlock(long blockId) {
+    Optional<BlockMeta> optionalBlock = mMetaManager.getBlock(blockId);
+    if (!optionalBlock.isPresent()) {
+      LOG.error("Fail to get block {}: not existing", blockId);
+      return Optional.absent();
+    }
+    return Optional.of(optionalBlock.get().getPath());
+  }
+
+  /**
+   * Create a new block.
+   *
+   * @param userId the id of the user
+   * @param blockId the id of the block
+   * @param blockSize block size in bytes
+   * @param tierHint which tier to create this block
+   * @return the temporary path of the newly created block, or absent if not feasible.
+   */
+  public Optional<String> createBlock(long userId, long blockId, long blockSize, int tierHint) {
+    Optional<BlockMeta> optionalBlock =
+        mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
+    if (!optionalBlock.isPresent()) {
       mEvictor.freeSpace(blockSize, tierHint);
-      optionalMeta = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
-      if (!optionalMeta.isPresent()) {
-        LOG.error("Cannot create block");
-        return null;
+      optionalBlock = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
+      if (!optionalBlock.isPresent()) {
+        LOG.error("Fail to create block {}:", blockId);
+        return Optional.absent();
       }
     }
-    return optionalMeta.get().getTmpPath();
+    return Optional.of(optionalBlock.get().getTmpPath());
+  }
+
+  /**
+   * Free a block.
+   *
+   * @param blockId the id of the block
+   * @return true if successful, false otherwise.
+   */
+  public boolean freeBlock(long blockId) {
+    Optional<BlockMeta> optionalBlock = mMetaManager.getBlock(blockId);
+    if (!optionalBlock.isPresent()) {
+      LOG.error("Fail to free block {}: not existing", blockId);
+      return false;
+    }
+    BlockMeta block = optionalBlock.get();
+    if (!block.isCheckpointed()) {
+      LOG.error("Fail to free block {}: not checkpointed", blockId);
+      return false;
+    }
+    lockBlock(blockId);
+    BlockIOOperator operator = new BlockIOOperator(block.getPath());
+    boolean done = operator.delete();
+    unlockBlock(blockId);
+    if (!done) {
+      return false;
+    }
+    return mMetaManager.removeBlock(blockId);
+  }
+
+  public boolean lockBlock(long blockId) {
+    return true;
+  }
+
+  public boolean unlockBlock(long blockId) {
+    return true;
   }
 }
