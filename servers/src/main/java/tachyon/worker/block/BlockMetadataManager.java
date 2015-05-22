@@ -31,7 +31,9 @@ import tachyon.worker.block.meta.StorageTier;
 
 /**
  * Class that provides the Worker, Allocator and Evictor with the access to metadata structures.
- * Methods provided by this class is not thread safe.
+ * <p>
+ * This class is thread-safe and all operations on block metadata such as StorageTier, StorageDir
+ * should go through this class.
  */
 public class BlockMetadataManager {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
@@ -58,7 +60,7 @@ public class BlockMetadataManager {
 
   /* Operations on metadata information */
 
-  public Optional<BlockMeta> getBlock(long blockId) {
+  public Optional<BlockMeta> getBlockMeta(long blockId) {
     for (Map.Entry<Integer, StorageTier> entry : mTiers.entrySet()) {
       StorageTier tier = entry.getValue();
       Optional<BlockMeta> optionalBlock = tier.getBlock(blockId);
@@ -69,14 +71,14 @@ public class BlockMetadataManager {
     return Optional.absent();
   }
 
-  public Optional<BlockMeta> addBlockInTier(long userId, long blockId, long blockSize,
+  public Optional<BlockMeta> addBlockMetaInTier(long userId, long blockId, long blockSize,
       int tierAlias) {
     StorageTier tier = getTier(tierAlias);
     Preconditions.checkArgument(tier != null, "tierAlias must be valid: %s", tierAlias);
     return tier.addBlock(userId, blockId, blockSize);
   }
 
-  public boolean removeBlock(long blockId) {
+  public boolean removeBlockMeta(long blockId) {
     for (Map.Entry<Integer, StorageTier> entry : mTiers.entrySet()) {
       StorageTier tier = entry.getValue();
       if (tier.removeBlock(blockId)) {

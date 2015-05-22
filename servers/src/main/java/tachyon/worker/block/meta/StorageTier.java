@@ -24,8 +24,9 @@ import tachyon.conf.TachyonConf;
 import tachyon.util.CommonUtils;
 
 /**
- * Represents a tier of storage, for example memory or SSD. The methods provided by this class are
- * thread safe.
+ * Represents a tier of storage, for example memory or SSD.
+ * <p>
+ * This class does not guarantee thread safety.
  */
 public class StorageTier {
   private Set<StorageDir> mStorageDirs;
@@ -77,9 +78,9 @@ public class StorageTier {
     return mStorageDirs.remove(dir);
   }
 
-  public synchronized Optional<BlockMeta> getBlock(long blockId) {
+  public Optional<BlockMeta> getBlock(long blockId) {
     for (StorageDir dir : mStorageDirs) {
-      Optional<BlockMeta> optionalBlock = dir.getBlock(blockId);
+      Optional<BlockMeta> optionalBlock = dir.getBlockMeta(blockId);
       if (optionalBlock.isPresent()) {
         return optionalBlock;
       }
@@ -87,10 +88,10 @@ public class StorageTier {
     return Optional.absent();
   }
 
-  public synchronized Optional<BlockMeta> addBlock(long userId, long blockId,
+  public Optional<BlockMeta> addBlock(long userId, long blockId,
                                                    long blockSize) {
     for (StorageDir dir : mStorageDirs) {
-      Optional<BlockMeta> optionalBlock = dir.addBlock(userId, blockId, blockSize);
+      Optional<BlockMeta> optionalBlock = dir.addBlockMeta(userId, blockId, blockSize);
       if (optionalBlock.isPresent()) {
         return optionalBlock;
       }
@@ -98,10 +99,10 @@ public class StorageTier {
     return Optional.absent();
   }
 
-  public synchronized boolean removeBlock(long blockId) {
+  public boolean removeBlock(long blockId) {
     for (StorageDir dir : mStorageDirs) {
-      if (dir.hasBlock(blockId)) {
-        return dir.removeBlock(blockId);
+      if (dir.hasBlockMeta(blockId)) {
+        return dir.removeBlockMeta(blockId);
       }
     }
     return false;

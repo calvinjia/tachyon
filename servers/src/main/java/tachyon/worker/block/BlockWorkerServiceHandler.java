@@ -15,6 +15,7 @@
 
 package tachyon.worker.block;
 
+import com.google.common.base.Optional;
 import tachyon.thrift.BlockInfoException;
 import tachyon.thrift.FailedToCheckpointException;
 import tachyon.thrift.FileAlreadyExistException;
@@ -23,6 +24,8 @@ import tachyon.thrift.OutOfSpaceException;
 import tachyon.thrift.SuspectedFileSizeException;
 import tachyon.thrift.TachyonException;
 import tachyon.thrift.WorkerService;
+
+import java.io.FileNotFoundException;
 
 /**
  * Handles all thrift RPC calls to the worker. This class is a thrift server implementation and
@@ -43,13 +46,17 @@ public class BlockWorkerServiceHandler implements WorkerService.Iface {
    * @param blockId The id of the block
    * @param blockSize The size of the block in bytes
    * @param tierHint Any tier preference for the block
-   * @return Path to the local file
+   * @return Path to the local file, or null if it failed
    * @throws OutOfSpaceException
    * @throws FileAlreadyExistException
    */
   public String createBlock(long userId, long blockId, long blockSize, int tierHint)
       throws OutOfSpaceException, FileAlreadyExistException {
-    return mBlockWorker.createBlock(userId, blockId, blockSize, tierHint);
+    Optional<String> optionalBlock = mBlockWorker.createBlock(userId, blockId, blockSize, tierHint);
+    if (optionalBlock.isPresent()) {
+      return optionalBlock.get();
+    }
+    return null;
   }
 
   /**
@@ -63,10 +70,12 @@ public class BlockWorkerServiceHandler implements WorkerService.Iface {
 
   /**
    * Used to remove a block from the Tachyon storage managed by this worker.
-   * @param blockId
+   *
+   * @param blockId The id of the block
+   * @return true if the block is freed successfully, false otherwise
    */
-  public void freeBlock(long blockId) {
-
+  public boolean freeBlock(long blockId) throws FileNotFoundException {
+    return mBlockWorker.freeBlock(blockId);
   }
 
   /**

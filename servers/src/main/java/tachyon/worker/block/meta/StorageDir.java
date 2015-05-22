@@ -27,7 +27,9 @@ import org.slf4j.LoggerFactory;
 import tachyon.Constants;
 
 /**
- * Represents one isolated storage unit. The methods provided by this class are thread safe.
+ * Represents one isolated storage unit.
+ * <p>
+ * This class does not provide thread safety.
  */
 public class StorageDir {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
@@ -58,25 +60,24 @@ public class StorageDir {
     return mDirPath;
   }
 
-  public boolean hasBlock(long blockId) {
+  public boolean hasBlockMeta(long blockId) {
     return mBlockIdToBlockMap.containsKey(blockId)
   }
 
-  public Optional<BlockMeta> getBlock(long blockId) {
-    if (!hasBlock(blockId)) {
+  public Optional<BlockMeta> getBlockMeta(long blockId) {
+    if (!hasBlockMeta(blockId)) {
       return Optional.absent();
     }
     return Optional.of(mBlockIdToBlockMap.get(blockId));
   }
 
-  public synchronized Optional<BlockMeta> addBlock(long userId, long blockId,
-                                                   long blockSize) {
+  public Optional<BlockMeta> addBlockMeta(long userId, long blockId, long blockSize) {
     if (getAvailableBytes() < blockSize) {
       LOG.error("Fail to create blockId {} in dir {}: {} bytes required, but {} bytes available",
           blockId, toString(), blockSize, getAvailableBytes());
       return Optional.absent();
     }
-    if (hasBlock(blockId)) {
+    if (hasBlockMeta(blockId)) {
       LOG.error("Fail to create blockId {} in dir {}: blockId exists", blockId, toString());
       return Optional.absent();
     }
@@ -94,8 +95,8 @@ public class StorageDir {
     return Optional.of(block);
   }
 
-  public synchronized boolean removeBlock(long blockId) {
-    if (!hasBlock(blockId)) {
+  public boolean removeBlockMeta(long blockId) {
+    if (!hasBlockMeta(blockId)) {
       return false;
     }
     BlockMeta block = mBlockIdToBlockMap.remove(blockId);

@@ -15,18 +15,23 @@
 
 package tachyon.worker.block;
 
+import java.io.FileNotFoundException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Optional;
 
 import tachyon.Constants;
 import tachyon.conf.TachyonConf;
+import tachyon.worker.BlockLockManager;
 import tachyon.worker.block.allocator.Allocator;
 import tachyon.worker.block.allocator.NaiveAllocator;
 import tachyon.worker.block.evictor.Evictor;
 import tachyon.worker.block.evictor.NaiveEvictor;
 import tachyon.worker.block.meta.BlockMeta;
+
 
 /**
  * Central management for block level operations.
@@ -39,10 +44,12 @@ public class BlockWorker {
 
   private final Allocator mAllocator;
   private final Evictor mEvictor;
+  private final BlockLockManager mLockManager;
 
   public BlockWorker() {
     mTachyonConf = new TachyonConf();
     mMetaManager = new BlockMetadataManager(mTachyonConf);
+    mLockManager = new BlockLockManager();
     mAllocator = new NaiveAllocator(mMetaManager);
     mEvictor = new NaiveEvictor(mMetaManager);
   }
@@ -54,7 +61,7 @@ public class BlockWorker {
    * @return the path of the block, or absent if not found.
    */
   public Optional<String> getBlock(long blockId) {
-    Optional<BlockMeta> optionalBlock = mMetaManager.getBlock(blockId);
+    Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
     if (!optionalBlock.isPresent()) {
       LOG.error("Fail to get block {}: not existing", blockId);
       return Optional.absent();
@@ -91,8 +98,8 @@ public class BlockWorker {
    * @param blockId the id of the block
    * @return true if successful, false otherwise.
    */
-  public boolean freeBlock(long blockId) {
-    Optional<BlockMeta> optionalBlock = mMetaManager.getBlock(blockId);
+  public boolean freeBlock(long blockId) throws FileNotFoundException {
+    Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
     if (!optionalBlock.isPresent()) {
       LOG.error("Fail to free block {}: not existing", blockId);
       return false;
@@ -102,21 +109,21 @@ public class BlockWorker {
       LOG.error("Fail to free block {}: not checkpointed", blockId);
       return false;
     }
-    lockBlock(blockId);
-    BlockIOOperator operator = new BlockIOOperator(block.getPath());
-    boolean done = operator.delete();
-    unlockBlock(blockId);
-    if (!done) {
+
+    BlockLock lock = mLockManager.getLockBlock(blockId);
+    lock.lock();
+
+    // Step1: delete metadata of the block
+    if (!mMetaManager.removeBlockMeta(blockId)) {
       return false;
     }
-    return mMetaManager.removeBlock(blockId);
-  }
+    // Step2: delete the data file of the block
+    BlockFileOperator operator = new BlockFileOperator(block, lock);
+    boolean deleted = operator.delete();
 
-  public boolean lockBlock(long blockId) {
-    return true;
-  }
+    lock.unlock();
+    mLockManager.removeLockBlock(blockId);
 
-  public boolean unlockBlock(long blockId) {
-    return true;
+    return deleted;
   }
 }
