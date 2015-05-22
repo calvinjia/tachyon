@@ -3,7 +3,7 @@ package tachyon.worker.block;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * A Lock that guards one block.
+ * A Lock to guard one block. There should be only one lock per block.
  */
 public class BlockLock {
   private final ReentrantLock mLock;
@@ -28,6 +28,10 @@ public class BlockLock {
 
   public void lock() {
     mLock.lock();
+  }
+
+  public void tryLock() {
+    mLock.tryLock();
   }
 
   public void unlock() {

@@ -33,12 +33,12 @@ public class BlockLockManager {
   public BlockLockManager() {}
 
   /**
-   * Get a lock for the given block id.
+   * Get the lock for the given block id. If there is no such a lock yet, create one.
    *
    * @param blockId The id of the block.
    * @return the lock for this block
    */
-  public synchronized BlockLock getLockBlock(long blockId) {
+  public synchronized BlockLock getBlockLock(long blockId) {
     if (!mBlockIdToLockMap.containsKey(blockId)) {
       BlockLock lock = new BlockLock(blockId, mBlockLockId.incrementAndGet());
       mBlockIdToLockMap.put(blockId, lock);
@@ -52,7 +52,7 @@ public class BlockLockManager {
    * @param blockId The id of the block.
    * @return the lock removed
    */
-  public synchronized BlockLock removeLockBlock(long blockId) {
+  public synchronized BlockLock removeBlockLock(long blockId) {
     return mBlockIdToLockMap.remove(blockId);
   }
 }
