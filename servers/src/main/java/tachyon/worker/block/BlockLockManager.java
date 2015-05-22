@@ -22,11 +22,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import tachyon.worker.block.BlockLock;
 
 /**
- * Handle all block locks.
+ * Handle all block locks. This class is thread-safe.
  */
 public class BlockLockManager {
-  static final AtomicInteger mBlockLockId = new AtomicInteger(0);
-
   /** A map from a block ID to its lock **/
   private final Map<Long, BlockLock> mBlockIdToLockMap = new HashMap<Long, BlockLock>();
 
@@ -40,7 +38,7 @@ public class BlockLockManager {
    */
   public synchronized BlockLock getBlockLock(long blockId) {
     if (!mBlockIdToLockMap.containsKey(blockId)) {
-      BlockLock lock = new BlockLock(blockId, mBlockLockId.incrementAndGet());
+      BlockLock lock = new BlockLock(blockId);
       mBlockIdToLockMap.put(blockId, lock);
     }
     return mBlockIdToLockMap.get(blockId);

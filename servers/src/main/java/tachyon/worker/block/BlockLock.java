@@ -1,20 +1,23 @@
 package tachyon.worker.block;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A Lock to guard one block. There should be only one lock per block.
  */
 public class BlockLock {
+  static final AtomicInteger mBlockLockId = new AtomicInteger(0);
+
   private final ReentrantLock mLock;
   /** The block Id this lock guards **/
   private final long mBlockId;
-  /** The unique id of this lock **/
-  private final Integer mLockId;
+  /** The unique id of each lock **/
+  private final int mLockId;
 
-  public BlockLock(long blockId, Integer lockId) {
+  public BlockLock(long blockId) {
     mBlockId = blockId;
-    mLockId = lockId;
+    mLockId = mBlockLockId.incrementAndGet();
     mLock = new ReentrantLock();
   }
 
@@ -22,7 +25,7 @@ public class BlockLock {
     return mBlockId;
   }
 
-  public Integer getLockId() {
+  public int getLockId() {
     return mLockId;
   }
 
