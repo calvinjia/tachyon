@@ -19,12 +19,18 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.base.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import tachyon.Constants;
 import tachyon.worker.block.BlockLock;
 
 /**
  * Handle all block locks. This class is thread-safe.
  */
 public class BlockLockManager {
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
+
   /** A map from a block ID to its lock **/
   private final Map<Long, BlockLock> mBlockIdToLockMap = new HashMap<Long, BlockLock>();
 
@@ -36,12 +42,21 @@ public class BlockLockManager {
    * @param blockId The id of the block.
    * @return the lock for this block
    */
-  public synchronized BlockLock getBlockLock(long blockId) {
+  public synchronized Optional<BlockLock> getBlockLock(long blockId) {
     if (!mBlockIdToLockMap.containsKey(blockId)) {
-      BlockLock lock = new BlockLock(blockId);
-      mBlockIdToLockMap.put(blockId, lock);
+      LOG.error("Cannot get lock for block {}: not exists", blockId);
+      return Optional.absent();
     }
-    return mBlockIdToLockMap.get(blockId);
+    return Optional.of(mBlockIdToLockMap.get(blockId));
+  }
+
+  public synchronized boolean addBlockLock(long blockId) {
+    if (mBlockIdToLockMap.containsKey(blockId)) {
+      LOG.error("Cannot add lock for block {}: already exists", blockId);
+      return false;
+    }
+    mBlockIdToLockMap.put(blockId, new BlockLock(blockId));
+    return true;
   }
 
   /**
@@ -50,7 +65,12 @@ public class BlockLockManager {
    * @param blockId The id of the block.
    * @return the lock removed
    */
-  public synchronized BlockLock removeBlockLock(long blockId) {
-    return mBlockIdToLockMap.remove(blockId);
+  public synchronized boolean removeBlockLock(long blockId) {
+    if (!mBlockIdToLockMap.containsKey(blockId)) {
+      LOG.error("Cannot remove lock for block {}: not exists", blockId);
+      return false;
+    }
+    mBlockIdToLockMap.remove(blockId);
+    return true;
   }
 }

@@ -17,6 +17,7 @@ package tachyon.worker.block;
 
 import java.io.FileNotFoundException;
 
+import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +78,11 @@ public class BlockWorker {
    * @param tierHint which tier to create this block
    * @return the temporary path of the newly created block, or absent if not feasible.
    */
-  public Optional<String> createBlock(long userId, long blockId, long blockSize, int tierHint) {
+  public Optional<BlockMeta> createBlock(long userId, long blockId, long blockSize, int tierHint) {
+    if (!mLockManager.addBlockLock(blockId)) {
+      return Optional.absent();
+    }
+
     Optional<BlockMeta> optionalBlock =
         mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
     if (!optionalBlock.isPresent()) {
@@ -88,7 +93,7 @@ public class BlockWorker {
         return Optional.absent();
       }
     }
-    return Optional.of(optionalBlock.get().getTmpPath());
+    return optionalBlock;
   }
 
   /**
@@ -109,7 +114,9 @@ public class BlockWorker {
       return false;
     }
 
-    BlockLock lock = mLockManager.getBlockLock(blockId);
+    Optional<BlockLock> optionalLock = mLockManager.getBlockLock(blockId);
+    Preconditions.checkState(optionalLock.isPresent());
+    BlockLock lock = optionalLock.get();
     lock.lock();
 
     // Step1: delete metadata of the block
@@ -121,7 +128,7 @@ public class BlockWorker {
     boolean deleted = operator.delete();
 
     lock.unlock();
-    mLockManager.removeBlockLock(blockId);
+    Preconditions.checkState(mLockManager.removeBlockLock(blockId));
 
     return deleted;
   }

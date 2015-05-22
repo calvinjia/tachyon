@@ -24,6 +24,7 @@ import tachyon.thrift.OutOfSpaceException;
 import tachyon.thrift.SuspectedFileSizeException;
 import tachyon.thrift.TachyonException;
 import tachyon.thrift.WorkerService;
+import tachyon.worker.block.meta.BlockMeta;
 
 import java.io.FileNotFoundException;
 
@@ -52,9 +53,9 @@ public class BlockWorkerServiceHandler implements WorkerService.Iface {
    */
   public String createBlock(long userId, long blockId, long blockSize, int tierHint)
       throws OutOfSpaceException, FileAlreadyExistException {
-    Optional<String> optionalBlock = mBlockWorker.createBlock(userId, blockId, blockSize, tierHint);
+    Optional<BlockMeta> optionalBlock = mBlockWorker.createBlock(userId, blockId, blockSize, tierHint);
     if (optionalBlock.isPresent()) {
-      return optionalBlock.get();
+      return optionalBlock.get().getTmpPath();
     }
     return null;
   }
