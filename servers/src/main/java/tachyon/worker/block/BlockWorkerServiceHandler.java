@@ -29,17 +29,15 @@ import tachyon.thrift.TachyonException;
 import tachyon.thrift.WorkerService;
 import tachyon.worker.block.meta.BlockMeta;
 
-import tachyon.worker.block.meta.BlockMeta;
-
 /**
  * Handles all thrift RPC calls to the worker. This class is a thrift server implementation and is
  * thread safe.
  */
 public class BlockWorkerServiceHandler implements WorkerService.Iface {
 
-  private final BlockWorker mBlockWorker;
+  private final BlockStore mBlockWorker;
 
-  public BlockWorkerServiceHandler(BlockWorker blockWorker) {
+  public BlockWorkerServiceHandler(BlockStore blockWorker) {
     mBlockWorker = blockWorker;
   }
 

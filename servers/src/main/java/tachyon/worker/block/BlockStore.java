@@ -38,7 +38,7 @@ import tachyon.worker.block.meta.BlockMeta;
  * <p>
  * This class is thread-safe.
  */
-public class BlockWorker {
+public class BlockStore {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   private final TachyonConf mTachyonConf;
@@ -48,7 +48,7 @@ public class BlockWorker {
   private final Evictor mEvictor;
   private final BlockLockManager mLockManager;
 
-  public BlockWorker() {
+  public BlockStore() {
     mTachyonConf = new TachyonConf();
     mMetaManager = new BlockMetadataManager(mTachyonConf);
     mLockManager = new BlockLockManager();
