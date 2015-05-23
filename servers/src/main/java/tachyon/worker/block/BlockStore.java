@@ -34,8 +34,12 @@ import tachyon.worker.block.meta.BlockMeta;
 
 
 /**
- * Central management for block level operations.
- * <p>
+ * This class represents an object store that manages all the blocks in the local tiered storage.
+ * This store exposes simple public APIs to operate blocks. Inside this store, it creates an
+ * Allocator to decide where to put a new block, an Evictor to decide where to evict a stale block,
+ * a BlockMetadataManager to maintain the status of the tiered storage, and a LockManager to
+ * coordinate read/write on the same block.
+  * <p>
  * This class is thread-safe.
  */
 public class BlockStore {
@@ -52,7 +56,9 @@ public class BlockStore {
     mTachyonConf = new TachyonConf();
     mMetaManager = new BlockMetadataManager(mTachyonConf);
     mLockManager = new BlockLockManager();
+    // TODO: create Allocator according to tachyonConf.
     mAllocator = new NaiveAllocator(mMetaManager);
+    // TODO: create Evictor according to tachyonConf
     mEvictor = new NaiveEvictor(mMetaManager);
   }
 
@@ -62,7 +68,7 @@ public class BlockStore {
    * @param blockId the id of the block
    * @return the block metadata of this block id or absent if not found.
    */
-  public Optional<BlockMeta> getBlock(long blockId) {
+  public Optional<BlockMeta> getBlockMeta(long blockId) {
     Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
     if (!optionalBlock.isPresent()) {
       LOG.error("Fail to get block {}: not existing", blockId);
@@ -72,7 +78,7 @@ public class BlockStore {
   }
 
   /**
-   * Create a new block.
+   * Create the metadata of a new block.
    *
    * @param userId the id of the user
    * @param blockId the id of the block
@@ -80,7 +86,8 @@ public class BlockStore {
    * @param tierHint which tier to create this block
    * @return the newly created block metadata or absent on creation failure.
    */
-  public Optional<BlockMeta> createBlock(long userId, long blockId, long blockSize, int tierHint) {
+  public Optional<BlockMeta> createBlockMeta(long userId, long blockId, long blockSize,
+      int tierHint) {
     if (!mLockManager.addBlockLock(blockId)) {
       return Optional.absent();
     }

@@ -79,7 +79,7 @@ public class StorageTier {
     return mStorageDirs.remove(dir);
   }
 
-  public Optional<BlockMeta> getBlock(long blockId) {
+  public Optional<BlockMeta> getBlockMeta(long blockId) {
     for (StorageDir dir : mStorageDirs) {
       Optional<BlockMeta> optionalBlock = dir.getBlockMeta(blockId);
       if (optionalBlock.isPresent()) {
@@ -89,7 +89,7 @@ public class StorageTier {
     return Optional.absent();
   }
 
-  public Optional<BlockMeta> addBlock(long userId, long blockId, long blockSize) {
+  public Optional<BlockMeta> addBlockMeta(long userId, long blockId, long blockSize) {
     for (StorageDir dir : mStorageDirs) {
       Optional<BlockMeta> optionalBlock = dir.addBlockMeta(userId, blockId, blockSize);
       if (optionalBlock.isPresent()) {
@@ -99,7 +99,7 @@ public class StorageTier {
     return Optional.absent();
   }
 
-  public boolean removeBlock(long blockId) {
+  public boolean removeBlockMeta(long blockId) {
     for (StorageDir dir : mStorageDirs) {
       if (dir.hasBlockMeta(blockId)) {
         return dir.removeBlockMeta(blockId);

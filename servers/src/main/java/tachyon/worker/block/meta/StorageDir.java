@@ -62,18 +62,38 @@ public class StorageDir {
     return mDirPath;
   }
 
-  public boolean hasBlockMeta(long blockId) {
+  /**
+   * Check if a specific block is in this storage dir.
+   *
+   * @param blockId the block ID
+   * @return true if the block is in this storage dir, false otherwise
+   */
+  boolean hasBlockMeta(long blockId) {
     return mBlockIdToBlockMap.containsKey(blockId)
   }
 
-  public Optional<BlockMeta> getBlockMeta(long blockId) {
+  /**
+   * Get the BlockMeta from this storage dir by its block ID.
+   *
+   * @param blockId the block ID
+   * @return the BlockMeta or absent
+   */
+  Optional<BlockMeta> getBlockMeta(long blockId) {
     if (!hasBlockMeta(blockId)) {
       return Optional.absent();
     }
     return Optional.of(mBlockIdToBlockMap.get(blockId));
   }
 
-  public Optional<BlockMeta> addBlockMeta(long userId, long blockId, long blockSize) {
+  /**
+   * Add the metadata of a new block into this storage dir.
+   *
+   * @param userId the user ID
+   * @param blockId the block ID
+   * @param blockSize the block size in bytes
+   * @return the BlockMeta or absent
+   */
+  Optional<BlockMeta> addBlockMeta(long userId, long blockId, long blockSize) {
     if (getAvailableBytes() < blockSize) {
       LOG.error("Fail to create blockId {} in dir {}: {} bytes required, but {} bytes available",
           blockId, toString(), blockSize, getAvailableBytes());
@@ -97,7 +117,13 @@ public class StorageDir {
     return Optional.of(block);
   }
 
-  public boolean removeBlockMeta(long blockId) {
+  /**
+   * Remove a block from this storage dir.
+   *
+   * @param blockId the block ID
+   * @return true if success, false otherwise
+   */
+  boolean removeBlockMeta(long blockId) {
     if (!hasBlockMeta(blockId)) {
       return false;
     }

@@ -63,7 +63,7 @@ public class BlockMetadataManager {
   public synchronized Optional<BlockMeta> getBlockMeta(long blockId) {
     for (Map.Entry<Integer, StorageTier> entry : mTiers.entrySet()) {
       StorageTier tier = entry.getValue();
-      Optional<BlockMeta> optionalBlock = tier.getBlock(blockId);
+      Optional<BlockMeta> optionalBlock = tier.getBlockMeta(blockId);
       if (optionalBlock.isPresent()) {
         return optionalBlock;
       }
@@ -75,13 +75,13 @@ public class BlockMetadataManager {
       int tierAlias) {
     StorageTier tier = getTier(tierAlias);
     Preconditions.checkArgument(tier != null, "tierAlias must be valid: %s", tierAlias);
-    return tier.addBlock(userId, blockId, blockSize);
+    return tier.addBlockMeta(userId, blockId, blockSize);
   }
 
   public synchronized boolean removeBlockMeta(long blockId) {
     for (Map.Entry<Integer, StorageTier> entry : mTiers.entrySet()) {
       StorageTier tier = entry.getValue();
-      if (tier.removeBlock(blockId)) {
+      if (tier.removeBlockMeta(blockId)) {
         return true;
       }
     }

@@ -55,7 +55,7 @@ public class BlockWorkerServiceHandler implements WorkerService.Iface {
   public String createBlock(long userId, long blockId, long blockSize, int tierHint)
       throws OutOfSpaceException, FileAlreadyExistException {
     Optional<BlockMeta> optionalBlock =
-        mBlockWorker.createBlock(userId, blockId, blockSize, tierHint);
+        mBlockWorker.createBlockMeta(userId, blockId, blockSize, tierHint);
     if (optionalBlock.isPresent()) {
       return optionalBlock.get().getTmpPath();
     }
