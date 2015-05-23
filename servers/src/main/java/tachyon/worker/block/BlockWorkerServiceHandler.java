@@ -4,9 +4,9 @@
  * copyright ownership. The ASF licenses this file to You under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- *
+ * 
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -15,7 +15,10 @@
 
 package tachyon.worker.block;
 
+import java.io.FileNotFoundException;
+
 import com.google.common.base.Optional;
+
 import tachyon.thrift.BlockInfoException;
 import tachyon.thrift.FailedToCheckpointException;
 import tachyon.thrift.FileAlreadyExistException;
@@ -26,11 +29,11 @@ import tachyon.thrift.TachyonException;
 import tachyon.thrift.WorkerService;
 import tachyon.worker.block.meta.BlockMeta;
 
-import java.io.FileNotFoundException;
+import tachyon.worker.block.meta.BlockMeta;
 
 /**
- * Handles all thrift RPC calls to the worker. This class is a thrift server implementation and
- * is thread safe.
+ * Handles all thrift RPC calls to the worker. This class is a thrift server implementation and is
+ * thread safe.
  */
 public class BlockWorkerServiceHandler implements WorkerService.Iface {
 
@@ -53,7 +56,8 @@ public class BlockWorkerServiceHandler implements WorkerService.Iface {
    */
   public String createBlock(long userId, long blockId, long blockSize, int tierHint)
       throws OutOfSpaceException, FileAlreadyExistException {
-    Optional<BlockMeta> optionalBlock = mBlockWorker.createBlock(userId, blockId, blockSize, tierHint);
+    Optional<BlockMeta> optionalBlock =
+        mBlockWorker.createBlock(userId, blockId, blockSize, tierHint);
     if (optionalBlock.isPresent()) {
       return optionalBlock.get().getTmpPath();
     }
@@ -61,8 +65,9 @@ public class BlockWorkerServiceHandler implements WorkerService.Iface {
   }
 
   /**
-   * Used to close a block. Calling this method will move the block from the user temporary
-   * folder to the worker's data folder.
+   * Used to close a block. Calling this method will move the block from the user temporary folder
+   * to the worker's data folder.
+   * 
    * @param blockId
    */
   public void completeBlock(long blockId) {
@@ -80,8 +85,9 @@ public class BlockWorkerServiceHandler implements WorkerService.Iface {
   }
 
   /**
-   * Used to get a completed block for reading. This method should only be used if the block is
-   * in Tachyon managed space on this worker.
+   * Used to get a completed block for reading. This method should only be used if the block is in
+   * Tachyon managed space on this worker.
+   * 
    * @param blockId
    * @return
    */
@@ -92,6 +98,7 @@ public class BlockWorkerServiceHandler implements WorkerService.Iface {
   // TODO: Rename this method when complete, currently is V2 to avoid checkstyle errors
   /**
    * Obtains a lock on the block.
+   * 
    * @param blockId
    * @return
    */
@@ -102,6 +109,7 @@ public class BlockWorkerServiceHandler implements WorkerService.Iface {
   // TODO: Rename this method when complete, currently is V2 to avoid checkstyle errors
   /**
    * Relinquishes the lock on the block.
+   * 
    * @param blockId
    * @return
    */

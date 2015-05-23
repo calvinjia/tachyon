@@ -17,16 +17,19 @@ package tachyon.worker;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.base.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+
 import tachyon.Constants;
 import tachyon.worker.block.BlockLock;
 
 /**
- * Handle all block locks. This class is thread-safe.
+ * Handle all block locks.
+ * <p>
+ * This class is thread-safe as all public methods are syncrhonized.
  */
 public class BlockLockManager {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
@@ -40,7 +43,7 @@ public class BlockLockManager {
    * Get the lock for the given block id. If there is no such a lock yet, create one.
    *
    * @param blockId The id of the block.
-   * @return the lock for this block
+   * @return the lock for this block or absent.
    */
   public synchronized Optional<BlockLock> getBlockLock(long blockId) {
     if (!mBlockIdToLockMap.containsKey(blockId)) {

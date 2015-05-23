@@ -4,9 +4,9 @@
  * copyright ownership. The ASF licenses this file to You under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- *
+ * 
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -17,11 +17,11 @@ package tachyon.worker.block;
 
 import java.io.FileNotFoundException;
 
-import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 
 import tachyon.Constants;
 import tachyon.conf.TachyonConf;
@@ -35,6 +35,8 @@ import tachyon.worker.block.meta.BlockMeta;
 
 /**
  * Central management for block level operations.
+ * <p>
+ * This class is thread-safe.
  */
 public class BlockWorker {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
@@ -58,15 +60,15 @@ public class BlockWorker {
    * Get the block given its block id.
    *
    * @param blockId the id of the block
-   * @return the path of the block, or absent if not found.
+   * @return the block metadata of this block id or absent if not found.
    */
-  public Optional<String> getBlock(long blockId) {
+  public Optional<BlockMeta> getBlock(long blockId) {
     Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
     if (!optionalBlock.isPresent()) {
       LOG.error("Fail to get block {}: not existing", blockId);
       return Optional.absent();
     }
-    return Optional.of(optionalBlock.get().getPath());
+    return optionalBlock;
   }
 
   /**
@@ -76,7 +78,7 @@ public class BlockWorker {
    * @param blockId the id of the block
    * @param blockSize block size in bytes
    * @param tierHint which tier to create this block
-   * @return the temporary path of the newly created block, or absent if not feasible.
+   * @return the newly created block metadata or absent on creation failure.
    */
   public Optional<BlockMeta> createBlock(long userId, long blockId, long blockSize, int tierHint) {
     if (!mLockManager.addBlockLock(blockId)) {
@@ -103,24 +105,27 @@ public class BlockWorker {
    * @return true if successful, false otherwise.
    */
   public boolean freeBlock(long blockId) throws FileNotFoundException {
-    Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
-    if (!optionalBlock.isPresent()) {
-      LOG.error("Fail to free block {}: not existing", blockId);
-      return false;
-    }
-    BlockMeta block = optionalBlock.get();
-    if (!block.isCheckpointed()) {
-      LOG.error("Fail to free block {}: not checkpointed", blockId);
-      return false;
-    }
-
     Optional<BlockLock> optionalLock = mLockManager.getBlockLock(blockId);
     Preconditions.checkState(optionalLock.isPresent());
     BlockLock lock = optionalLock.get();
     lock.lock();
 
+    Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
+    if (!optionalBlock.isPresent()) {
+      LOG.error("Fail to free block {}: not existing", blockId);
+      lock.unlock();
+      return false;
+    }
+    BlockMeta block = optionalBlock.get();
+    if (!block.isCheckpointed()) {
+      LOG.error("Fail to free block {}: not checkpointed", blockId);
+      lock.unlock();
+      return false;
+    }
+
     // Step1: delete metadata of the block
     if (!mMetaManager.removeBlockMeta(blockId)) {
+      lock.unlock();
       return false;
     }
     // Step2: delete the data file of the block
