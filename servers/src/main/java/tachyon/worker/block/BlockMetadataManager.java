@@ -16,7 +16,9 @@
 package tachyon.worker.block;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +32,8 @@ import tachyon.worker.block.meta.BlockMeta;
 import tachyon.worker.block.meta.StorageTier;
 
 /**
- * Class that provides the Worker, Allocator and Evictor with the access to metadata structures.
+ * Manages the metadata of all blocks in managed space. This information is used by the BlockStore,
+ * Allocator and Evictor.
  * <p>
  * This class is thread-safe and all operations on block metadata such as StorageTier, StorageDir
  * should go through this class.
@@ -50,19 +53,28 @@ public class BlockMetadataManager {
     }
   }
 
-  public StorageTier getTier(int tierAlias) {
-    mTiers.get(tierAlias);
+  public synchronized StorageTier getTier(int tierAlias) {
+    return mTiers.get(tierAlias);
   }
 
-  public long getAvailableSpace() {
+  public synchronized Set<StorageTier> getTiers() {
+    return new HashSet<StorageTier>(mTiers.values());
+  }
+
+  public synchronized long getAvailableSpace() {
     return mAvailableSpace;
   }
 
   /* Operations on metadata information */
 
+  /**
+   * Get the metadata of a specific block.
+   *
+   * @param blockId the block ID
+   * @return metadata of the block or absent
+   */
   public synchronized Optional<BlockMeta> getBlockMeta(long blockId) {
-    for (Map.Entry<Integer, StorageTier> entry : mTiers.entrySet()) {
-      StorageTier tier = entry.getValue();
+    for (StorageTier tier : mTiers.values()) {
       Optional<BlockMeta> optionalBlock = tier.getBlockMeta(blockId);
       if (optionalBlock.isPresent()) {
         return optionalBlock;
@@ -71,16 +83,30 @@ public class BlockMetadataManager {
     return Optional.absent();
   }
 
-  public synchronized Optional<BlockMeta> addBlockMetaInTier(long userId, long blockId, long blockSize,
-      int tierAlias) {
+  /**
+   * Add the metadata of a specific block to a storage tier.
+   *
+   * @param userId the user ID
+   * @param blockId the block ID
+   * @param blockSize the block size in bytes
+   * @param tierAlias alias of the tier
+   * @return metadata of the block or absent
+   */
+  public synchronized Optional<BlockMeta> addBlockMetaInTier(long userId, long blockId,
+      long blockSize, int tierAlias) {
     StorageTier tier = getTier(tierAlias);
     Preconditions.checkArgument(tier != null, "tierAlias must be valid: %s", tierAlias);
     return tier.addBlockMeta(userId, blockId, blockSize);
   }
 
+  /**
+   * Remove the metadata of a specific block.
+   *
+   * @param blockId the block ID
+   * @return true if success, false otherwise
+   */
   public synchronized boolean removeBlockMeta(long blockId) {
-    for (Map.Entry<Integer, StorageTier> entry : mTiers.entrySet()) {
-      StorageTier tier = entry.getValue();
+    for (StorageTier tier : mTiers.values()) {
       if (tier.removeBlockMeta(blockId)) {
         return true;
       }

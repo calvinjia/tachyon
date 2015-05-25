@@ -25,15 +25,18 @@ import tachyon.conf.TachyonConf;
 import tachyon.util.CommonUtils;
 
 /**
- * Represents a tier of storage, for example memory or SSD.
+ * Represents a tier of storage, for example memory or SSD. It serves as a container of
+ * {@link StorageDir} which actually contains metadata information about blocks stored and space
+ * used/available.
  * <p>
- * This class does not guarantee thread safety.
+ * This class is not guarantee thread safety.
  */
 public class StorageTier {
   private Set<StorageDir> mStorageDirs;
+  private final int mTierAlias;
 
   public StorageTier(TachyonConf tachyonConf, int tier) {
-
+    mTierAlias = tier;
     String tierDirPathConf =
         String.format(Constants.WORKER_TIERED_STORAGE_LEVEL_DIRS_PATH_FORMAT, tier);
     String[] dirPaths = tachyonConf.get(tierDirPathConf, "/mnt/ramdisk").split(",");
@@ -49,6 +52,10 @@ public class StorageTier {
       long capacity = CommonUtils.parseSpaceSize(dirQuotas[index]);
       mStorageDirs.add(new StorageDir(capacity, dirPaths[i]));
     }
+  }
+
+  public int getTierAlias() {
+    return mTierAlias;
   }
 
   public long getCapacityBytes() {

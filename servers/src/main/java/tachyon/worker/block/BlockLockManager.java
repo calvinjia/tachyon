@@ -42,8 +42,8 @@ public class BlockLockManager {
   /**
    * Get the lock for the given block id. If there is no such a lock yet, create one.
    *
-   * @param blockId The id of the block.
-   * @return the lock for this block or absent.
+   * @param blockId The id of the block
+   * @return the lock for this block
    */
   public synchronized Optional<BlockLock> getBlockLock(long blockId) {
     if (!mBlockIdToLockMap.containsKey(blockId)) {
@@ -53,20 +53,26 @@ public class BlockLockManager {
     return Optional.of(mBlockIdToLockMap.get(blockId));
   }
 
+  /**
+   * Get the lock for the given block id. If there is no such a lock yet, create one.
+   *
+   * @param blockId The id of the block
+   * @return true if success, false otherwise
+   */
   public synchronized boolean addBlockLock(long blockId) {
     if (mBlockIdToLockMap.containsKey(blockId)) {
       LOG.error("Cannot add lock for block {}: already exists", blockId);
       return false;
     }
-    mBlockIdToLockMap.put(blockId, new BlockLock(blockId));
+    mBlockIdToLockMap.put(new BlockLock(blockId);
     return true;
   }
 
   /**
    * Remove a lock for the given block id.
    *
-   * @param blockId The id of the block.
-   * @return the lock removed
+   * @param blockId The id of the block
+   * @return true if success, false otherwise
    */
   public synchronized boolean removeBlockLock(long blockId) {
     if (!mBlockIdToLockMap.containsKey(blockId)) {

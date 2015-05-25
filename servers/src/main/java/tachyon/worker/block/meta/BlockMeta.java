@@ -20,7 +20,7 @@ import java.util.UUID;
 import tachyon.util.CommonUtils;
 
 /**
- * Data structure for holding the metadata of a block.
+ * Represents the metadata of a block in Tachyon managed storage.
  */
 public class BlockMeta {
   private final long mBlockId;

@@ -29,9 +29,10 @@ import com.google.common.collect.Sets;
 import tachyon.Constants;
 
 /**
- * Represents one isolated storage unit.
+ * Represents a directory in a storage tier. It has a fixed capacity allocated to it on
+ * instantiation. It contains the set of blocks currently in the storage directory
  * <p>
- * This class does not provide thread safety.
+ * This class is not thread safety.
  */
 public class StorageDir {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
