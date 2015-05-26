@@ -34,8 +34,8 @@ public class BlockLock {
     mLock.lock();
   }
 
-  public void tryLock() {
-    mLock.tryLock();
+  public boolean tryLock() {
+    return mLock.tryLock();
   }
 
   public void unlock() {
