@@ -20,6 +20,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.channels.ByteChannel;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 
@@ -34,7 +35,7 @@ import tachyon.util.CommonUtils;
 import tachyon.worker.block.meta.BlockMeta;
 
 /**
- * This class contains a collection of static methods to operat block data files in managed storage.
+ * This class provides methods to directly operate block data files stored in managed storage.
  * <p>
  * This class does not provide thread-safety. Corresponding {@link BlockLock} should be acquired
  * before creating an instance of this class.
@@ -52,6 +53,15 @@ public class BlockFileOperator {
     mFilePath = mBlockMeta.getPath();
     mLocalFile = mCloser.register(new RandomAccessFile(mFilePath, "rw"));
     mLocalFileChannel = mCloser.register(mLocalFile.getChannel());
+  }
+
+  /**
+   * Return local file channel to this block file
+   *
+   * @return channel
+   */
+  public ByteChannel getChannel() {
+    return mLocalFileChannel;
   }
 
   /**
@@ -89,20 +99,23 @@ public class BlockFileOperator {
   /**
    * Delete the block file.
    *
-   * @return true on success, false otherwise.
+   * @return true on success, false otherwise
    */
   public boolean delete() {
     return new File(mFilePath).delete();
   }
 
   /**
-   * Move the block file
+   * Move the block file to another path.
    *
-   * @param destPath
-   * @return
+   * @param dstPath destination path
+   * @return true on success, false otherwise
    */
-  public boolean move(String destPath) {
-    // TODO: implement this
-    return true;
+  public boolean move(String dstPath) {
+    // Check if destPath equals the current path, in this case, do nothing.
+    if (mFilePath.equals(dstPath)) {
+      return true;
+    }
+    return new File(mFilePath).renameTo(new File(dstPath));
   }
 }
