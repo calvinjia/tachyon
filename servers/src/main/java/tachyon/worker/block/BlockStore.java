@@ -28,10 +28,6 @@ import com.google.common.base.Preconditions;
 import tachyon.Constants;
 import tachyon.conf.TachyonConf;
 import tachyon.worker.BlockLockManager;
-import tachyon.worker.block.allocator.Allocator;
-import tachyon.worker.block.allocator.NaiveAllocator;
-import tachyon.worker.block.evictor.Evictor;
-import tachyon.worker.block.evictor.NaiveEvictor;
 import tachyon.worker.block.meta.BlockMeta;
 
 /**
@@ -48,19 +44,12 @@ public class BlockStore {
 
   private final TachyonConf mTachyonConf;
   private final BlockMetadataManager mMetaManager;
-
-  private final Allocator mAllocator;
-  private final Evictor mEvictor;
   private final BlockLockManager mLockManager;
 
   public BlockStore() {
     mTachyonConf = new TachyonConf();
     mMetaManager = new BlockMetadataManager(mTachyonConf);
     mLockManager = new BlockLockManager();
-    // TODO: create Allocator according to tachyonConf.
-    mAllocator = new NaiveAllocator(mMetaManager);
-    // TODO: create Evictor according to tachyonConf
-    mEvictor = new NaiveEvictor(mMetaManager);
   }
 
   /**
@@ -133,10 +122,11 @@ public class BlockStore {
     return mMetaManager.removeBlockMeta(blockId);
   }
 
-
   /**
    * Create the metadata of a new block. This method assumes the corresponding {@link BlockLock} has
    * been acquired.
+   * <p>
+   * This method is a wrapper around MetaManager.createBlockMeta() to provide public access to it.
    *
    * @param userId the id of the user
    * @param blockId the id of the block
@@ -146,20 +136,7 @@ public class BlockStore {
    */
   public Optional<BlockMeta> createBlockMetaNoLock(long userId, long blockId, long blockSize,
       int tierHint) {
-    if (!mLockManager.addBlockLock(blockId)) {
-      return Optional.absent();
-    }
-    Optional<BlockMeta> optionalBlock =
-        mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
-    if (!optionalBlock.isPresent()) {
-      mEvictor.freeSpace(blockSize, tierHint);
-      optionalBlock = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
-      if (!optionalBlock.isPresent()) {
-        LOG.error("Cannot create block {}:", blockId);
-        return Optional.absent();
-      }
-    }
-    return optionalBlock;
+    return mMetaManager.createBlockMeta(userId, blockId, blockSize, tierHint);
   }
 
   /**
@@ -175,6 +152,9 @@ public class BlockStore {
   public boolean createBlock(long userId, long blockId, ByteBuffer buf, int tierHint)
       throws IOException {
     Preconditions.checkNotNull(buf);
+    if (!mLockManager.addBlockLock(blockId)) {
+      return false;
+    }
     lockBlock(blockId);
     Optional<BlockMeta> optionalBlock =
         createBlockMetaNoLock(userId, blockId, buf.limit(), tierHint);

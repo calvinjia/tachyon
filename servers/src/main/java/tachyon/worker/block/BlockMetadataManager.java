@@ -28,6 +28,10 @@ import com.google.common.base.Preconditions;
 
 import tachyon.Constants;
 import tachyon.conf.TachyonConf;
+import tachyon.worker.block.allocator.Allocator;
+import tachyon.worker.block.allocator.NaiveAllocator;
+import tachyon.worker.block.evictor.Evictor;
+import tachyon.worker.block.evictor.NaiveEvictor;
 import tachyon.worker.block.meta.BlockMeta;
 import tachyon.worker.block.meta.StorageTier;
 
@@ -41,10 +45,17 @@ import tachyon.worker.block.meta.StorageTier;
 public class BlockMetadataManager {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
+  private final Allocator mAllocator;
+  private final Evictor mEvictor;
   private long mAvailableSpace;
   private Map<Integer, StorageTier> mTiers;
 
   public BlockMetadataManager(TachyonConf tachyonConf) {
+    // TODO: create Allocator according to tachyonConf.
+    mAllocator = new NaiveAllocator(this);
+    // TODO: create Evictor according to tachyonConf
+    mEvictor = new NaiveEvictor(this);
+
     // Initialize storage tiers
     int totalTiers = tachyonConf.getInt(Constants.WORKER_MAX_TIERED_STORAGE_LEVEL, 1);
     mTiers = new HashMap<Integer, StorageTier>(totalTiers);
@@ -66,6 +77,31 @@ public class BlockMetadataManager {
   }
 
   /* Operations on metadata information */
+
+  /**
+   * Create the metadata of a new block in a specific tier. If there is no space for this block in
+   * that tier, try to evict some blocks according to the eviction policy.
+   *
+   * @param userId the id of the user
+   * @param blockId the id of the block
+   * @param blockSize block size in bytes
+   * @param tierHint which tier to create this block
+   * @return the newly created block metadata or absent on creation failure.
+   */
+  public synchronized Optional<BlockMeta> createBlockMeta(long userId, long blockId,
+      long blockSize, int tierHint) {
+    Optional<BlockMeta> optionalBlock =
+        mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
+    if (!optionalBlock.isPresent()) {
+      mEvictor.freeSpace(blockSize, tierHint);
+      optionalBlock = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
+      if (!optionalBlock.isPresent()) {
+        LOG.error("Cannot create block {}:", blockId);
+        return Optional.absent();
+      }
+    }
+    return optionalBlock;
+  }
 
   /**
    * Get the metadata of a specific block.
@@ -95,7 +131,7 @@ public class BlockMetadataManager {
   public synchronized Optional<BlockMeta> addBlockMetaInTier(long userId, long blockId,
       long blockSize, int tierAlias) {
     StorageTier tier = getTier(tierAlias);
-    Preconditions.checkArgument(tier != null, "tierAlias must be valid: %s", tierAlias);
+    Preconditions.checkNotNull(tier, "tierAlias must be valid: %s", tierAlias);
     return tier.addBlockMeta(userId, blockId, blockSize);
   }
 
