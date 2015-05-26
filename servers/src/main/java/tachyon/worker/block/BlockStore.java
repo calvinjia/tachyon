@@ -4,9 +4,9 @@
  * copyright ownership. The ASF licenses this file to You under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -215,30 +215,6 @@ public class BlockStore {
     ByteBuffer buf = operator.read(0, block.getBlockSize());
     unlockBlock(blockId);
     return Optional.of(buf);
-  }
-
-  /**
-   * Write to an existing block at the specific offset and length.
-   *
-   * @param blockId the block ID
-   * @param offset offset of the data to read in bytes
-   * @param buf source ByteBuffer to write
-   * @return true if success, false otherwise
-   * @throws IOException
-   */
-  public long writeBlock(long blockId, long offset, ByteBuffer buf) throws IOException {
-    Preconditions.checkNotNull(buf);
-    lockBlock(blockId);
-    Optional<BlockMeta> optionalBlock = getBlockMetaNoLock(blockId);
-    if (!optionalBlock.isPresent()) {
-      unlockBlock(blockId);
-      return 0;
-    }
-    BlockMeta block = optionalBlock.get();
-    BlockFileOperator operator = new BlockFileOperator(block);
-    long bytesWritten = operator.write(offset, buf);
-    unlockBlock(blockId);
-    return bytesWritten;
   }
 
   /**
