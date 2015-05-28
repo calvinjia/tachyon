@@ -79,7 +79,7 @@ public class BlockWorkerServiceHandler implements WorkerService.Iface {
    * @return true if the block is freed successfully, false otherwise
    */
   public boolean freeBlock(long blockId) throws FileNotFoundException {
-    return mBlockWorker.freeBlock(blockId);
+    return mBlockWorker.removeBlock(blockId);
   }
 
   /**
