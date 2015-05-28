@@ -1,16 +1,18 @@
 package tachyon.worker.block;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 /**
- * A Lock to guard one block. There should be only one lock per block.
+ * A ReadWrite Lock to guard one block. There should be only one lock per block.
  */
-public class BlockLock {
+public class BlockLock implements ReadWriteLock {
   static final AtomicLong mBlockLockId = new AtomicLong(0);
 
-  private final ReentrantLock mLock;
+  private final ReentrantReadWriteLock mLock;
   /** The block Id this lock guards **/
   private final long mBlockId;
   /** The unique id of each lock **/
@@ -19,7 +21,7 @@ public class BlockLock {
   public BlockLock(long blockId) {
     mBlockId = blockId;
     mLockId = mBlockLockId.incrementAndGet();
-    mLock = new ReentrantLock();
+    mLock = new ReentrantReadWriteLock();
   }
 
   public long getBlockId() {
@@ -30,19 +32,13 @@ public class BlockLock {
     return mLockId;
   }
 
-  public void lock() {
-    mLock.lock();
+  @Override
+  public ReadLock readLock() {
+    return mLock.readLock();
   }
 
-  public boolean tryLock() {
-    return mLock.tryLock();
-  }
-
-  public void unlock() {
-    mLock.unlock();
-  }
-
-  public boolean isLocked() {
-    mLock.isLocked();
+  @Override
+  public WriteLock writeLock() {
+    return mLock.writeLock();
   }
 }
