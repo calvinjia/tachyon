@@ -17,7 +17,10 @@ package tachyon.worker;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +40,9 @@ public class BlockLockManager {
   /** A map from a block ID to its lock **/
   private final Map<Long, BlockLock> mBlockIdToLockMap = new HashMap<Long, BlockLock>();
 
+  /** A readwrite lock for meta data **/
+  private final ReentrantReadWriteLock mMetaLock = new ReentrantReadWriteLock();
+
   public BlockLockManager() {}
 
   /**
@@ -45,12 +51,32 @@ public class BlockLockManager {
    * @param blockId The id of the block
    * @return the lock for this block
    */
-  public synchronized Optional<BlockLock> getBlockLock(long blockId) {
-    if (!mBlockIdToLockMap.containsKey(blockId)) {
-      LOG.error("Cannot get lock for block {}: not exists", blockId);
-      return Optional.absent();
-    }
-    return Optional.of(mBlockIdToLockMap.get(blockId));
+//  public synchronized Optional<BlockLock> getBlockLock(long blockId) {
+//    if (!mBlockIdToLockMap.containsKey(blockId)) {
+//      LOG.error("Cannot get lock for block {}: not exists", blockId);
+//      return Optional.absent();
+//    }
+//    return Optional.of(mBlockIdToLockMap.get(blockId));
+//  }
+
+  public synchronized Lock getBlockReadLock(long blockId) {
+    Preconditions.checkArgument(mBlockIdToLockMap.containsKey(blockId),
+        "Cannot get lock for block %s: not exists", blockId);
+    return mBlockIdToLockMap.get(blockId).readLock();
+  }
+
+  public synchronized Lock getBlockWriteLock(long blockId) {
+    Preconditions.checkArgument(mBlockIdToLockMap.containsKey(blockId),
+        "Cannot get lock for block %s: not exists", blockId);
+    return mBlockIdToLockMap.get(blockId).writeLock();
+  }
+
+  public synchronized Lock getMetaReadLock() {
+    return mMetaLock.readLock();
+  }
+
+  public synchronized Lock getMetaWriteLock() {
+    return mMetaLock.writeLock();
   }
 
   /**

@@ -1,10 +1,9 @@
 package tachyon.worker.block;
 
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 /**
  * A ReadWrite Lock to guard one block. There should be only one lock per block.
@@ -33,12 +32,12 @@ public class BlockLock implements ReadWriteLock {
   }
 
   @Override
-  public ReadLock readLock() {
+  public Lock readLock() {
     return mLock.readLock();
   }
 
   @Override
-  public WriteLock writeLock() {
+  public Lock writeLock() {
     return mLock.writeLock();
   }
 }
