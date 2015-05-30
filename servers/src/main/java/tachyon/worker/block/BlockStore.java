@@ -4,9 +4,9 @@
  * copyright ownership. The ASF licenses this file to You under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- *
+ * 
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -19,6 +19,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +35,7 @@ import tachyon.worker.block.allocator.Allocator;
 import tachyon.worker.block.allocator.NaiveAllocator;
 import tachyon.worker.block.evictor.EvictionPlan;
 import tachyon.worker.block.evictor.Evictor;
-import tachyon.worker.block.evictor.RandomEvictor;
+import tachyon.worker.block.evictor.NaiveEvictor;
 import tachyon.worker.block.meta.BlockMeta;
 
 /**
@@ -55,6 +56,9 @@ public class BlockStore {
   private final Allocator mAllocator;
   private final Evictor mEvictor;
 
+  /** A readwrite lock for meta data **/
+  private final ReentrantReadWriteLock mEvictionLock = new ReentrantReadWriteLock();
+
   public BlockStore() {
     mTachyonConf = new TachyonConf();
     mMetaManager = new BlockMetadataManager(mTachyonConf);
@@ -63,7 +67,7 @@ public class BlockStore {
     // TODO: create Allocator according to tachyonConf.
     mAllocator = new NaiveAllocator(mMetaManager);
     // TODO: create Evictor according to tachyonConf
-    mEvictor = new RandomEvictor(mMetaManager);
+    mEvictor = new NaiveEvictor(mMetaManager);
   }
 
   /**
@@ -125,7 +129,25 @@ public class BlockStore {
       throws IOException {
     Preconditions.checkNotNull(buf);
     mEvictor.preCreateBlock(userId, blockId, tierHint);
+
+    mEvictionLock.writeLock().lock();
+    long blockSize = buf.limit();
+    Optional<BlockMeta> optionalBlock =
+        mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
+    if (!optionalBlock.isPresent()) {
+      if (freeSpace(blockSize, tierHint)) {
+        LOG.error("Cannot free space of {} bytes", blockSize);
+        mEvictionLock.writeLock().unlock();
+        return false;
+      }
+      optionalBlock = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
+      Preconditions.checkState(optionalBlock.isPresent(), "Cannot create block {}:", blockId);
+    }
+    BlockMeta block = optionalBlock.get();
+
     boolean result = createBlockInternal(userId, blockId, buf, tierHint);
+    mEvictionLock.writeLock().unlock();
+
     mEvictor.postCreateBlock(userId, blockId, tierHint);
     return result;
   }
@@ -136,27 +158,9 @@ public class BlockStore {
       return false;
     }
     Lock blockWriteLock = mLockManager.getBlockReadLock(blockId);
-    Lock metaWriteLock = mLockManager.getMetaReadLock();
+    Lock metaWriteLock = mLockManager.getStoreReadLock();
 
 
-    // long blockSize = buf.limit();
-    // synchronized (mMetaManager) {
-    // Optional<BlockMeta> optionalBlock =
-    // mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
-    // if (!optionalBlock.isPresent()) {
-    // mEvictor.freeSpace(blockSize, tierHint);
-    // optionalBlock = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
-    // if (!optionalBlock.isPresent()) {
-    // LOG.error("Cannot create block {}:", blockId);
-    // return false;
-    // }
-    // }
-    //
-    // if (!freeSpace(userId, blockSize, tierHint)) {
-    // unlockBlock(userId, blockId);
-    // return false;
-    // }
-    // }
 
     blockWriteLock.lock();
     metaWriteLock.lock();
@@ -176,7 +180,7 @@ public class BlockStore {
   }
 
   /**
-   * Read from an existing block at the specific offset and length.
+   * Read data from an existing block at a specific offset and length.
    *
    * @param userId the user ID
    * @param blockId the block ID
@@ -188,29 +192,27 @@ public class BlockStore {
   public Optional<ByteBuffer> readBlock(long userId, long blockId, long offset, long length)
       throws IOException {
     mEvictor.preReadBlock(userId, blockId, offset, length);
+    Lock blockReadLock = mLockManager.getBlockReadLock(blockId);
+
+    mEvictionLock.readLock().lock();
+    blockReadLock.lock();
     Optional<ByteBuffer> result = readBlockInternal(userId, blockId, offset, length);
+    blockReadLock.unlock();
+    mEvictionLock.readLock().unlock();
+
     mEvictor.postReadBlock(userId, blockId, offset, length);
     return result;
   }
 
   private Optional<ByteBuffer> readBlockInternal(long userId, long blockId, long offset, long length)
       throws IOException {
-    Lock blockReadLock = mLockManager.getBlockReadLock(blockId);
-    Lock metaReadLock = mLockManager.getMetaReadLock();
-
-    blockReadLock.lock();
-    metaReadLock.lock();
-    Optional<BlockMeta> optionalBlock = getBlockMetaNoLock(userId, blockId);
-    metaReadLock.unlock();
+    Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
     if (!optionalBlock.isPresent()) {
-      blockReadLock.unlock();
       return Optional.absent();
     }
     BlockMeta block = optionalBlock.get();
     BlockFileOperator operator = new BlockFileOperator(block);
-    ByteBuffer buf = operator.read(offset, length);
-    blockReadLock.unlock();
-    return Optional.of(buf);
+    return Optional.of(operator.read(offset, length));
   }
 
   /**
@@ -224,36 +226,32 @@ public class BlockStore {
    */
   public boolean moveBlock(long userId, long blockId, int newTierHint) throws IOException {
     mEvictor.preMoveBlock(userId, blockId, newTierHint);
+    Lock blockWriteLock = mLockManager.getBlockWriteLock(blockId);
+
+    mEvictionLock.readLock().lock();
+    blockWriteLock.lock();
     boolean result = moveBlockInternal(userId, blockId, newTierHint);
+    blockWriteLock.unlock();
+    mEvictionLock.readLock().unlock();
+
     mEvictor.postMoveBlock(userId, blockId, newTierHint);
     return result;
   }
 
 
   private boolean moveBlockInternal(long userId, long blockId, int newTierHint) throws IOException {
-    Lock blockWriteLock = mLockManager.getBlockWriteLock(blockId);
-    Lock metaWriteLock = mLockManager.getMetaWriteLock();
-
-    blockWriteLock.lock();
-    metaWriteLock.lock();
-    Optional<BlockMeta> optionalSrcBlock = getBlockMetaNoLock(userId, blockId);
+    Optional<BlockMeta> optionalSrcBlock = mMetaManager.getBlockMeta(userId);
     if (!optionalSrcBlock.isPresent()) {
-      metaWriteLock.unlock();
-      blockWriteLock.unlock();
       return false;
     }
-    Optional<BlockMeta> optionalDstBlock = moveBlockMetaNoLock(blockId, newTierHint);
-    metaWriteLock.unlock();
+    Optional<BlockMeta> optionalDstBlock = mMetaManager.moveBlockMeta(userId, blockId, newTierHint);
     if (!optionalDstBlock.isPresent()) {
-      blockWriteLock.unlock();
       return false;
     }
     BlockMeta srcBlock = optionalSrcBlock.get();
     BlockMeta dstBlock = optionalDstBlock.get();
     BlockFileOperator operator = new BlockFileOperator(srcBlock);
-    boolean done = operator.move(dstBlock.getPath());
-    blockWriteLock.unlock();
-    return done;
+    return operator.move(dstBlock.getPath());
   }
 
 
@@ -267,56 +265,54 @@ public class BlockStore {
    */
   public boolean removeBlock(long userId, long blockId) throws FileNotFoundException {
     mEvictor.preRemoveBlock(userId, blockId);
+    Lock blockWriteLock = mLockManager.getBlockWriteLock(blockId);
+
+    mEvictionLock.readLock().lock();
+    blockWriteLock.lock();
     boolean result = removeBlockInternal(userId, blockId);
+    blockWriteLock.unlock();
+    mEvictionLock.readLock().unlock();
+
+    Preconditions.checkState(mLockManager.removeBlockLock(blockId));
     mEvictor.postRemoveBlock(userId, blockId);
     return result;
   }
 
   private boolean removeBlockInternal(long userId, long blockId) throws FileNotFoundException {
-    Lock blockWriteLock = mLockManager.getBlockWriteLock(blockId);
-    Lock metaWriteLock = mLockManager.getMetaWriteLock();
-
-    blockWriteLock.lock();
-    metaWriteLock.lock();
-
-    Optional<BlockMeta> optionalBlock = getBlockMetaNoLock(userId, blockId);
+    Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
     if (!optionalBlock.isPresent()) {
-      metaWriteLock.unlock();
-      blockWriteLock.unlock();
       return false;
     }
     BlockMeta block = optionalBlock.get();
     if (!block.isCheckpointed()) {
       LOG.error("Cannot free block {}: not checkpointed", blockId);
-      metaWriteLock.unlock();
-      blockWriteLock.unlock();
       return false;
     }
-    boolean metaRemoved = removeBlockMetaNoLock(userId, blockId);
-    metaWriteLock.unlock();
+
     // Step1: delete metadata of the block
-    if (!metaRemoved) {
-      blockWriteLock.unlock();
+    if (!removeBlockMetaNoLock(userId, blockId)) {
       return false;
     }
     // Step2: delete the data file of the block
     BlockFileOperator operator = new BlockFileOperator(block);
-    boolean done = operator.delete();
-    Preconditions.checkState(mLockManager.removeBlockLock(blockId));
-
-    blockWriteLock.unlock();
-    return done;
+    return operator.delete();
   }
 
+  /**
+   * Free a certain amount of space
+   *
+   * @param userId the user ID
+   * @param bytes the space to free in bytes
+   * @param tierHint which tier to free
+   * @return true if success, false otherwise
+   * @throws IOException
+   */
   public boolean freeSpace(long userId, long bytes, int tierHint) throws IOException {
-    Lock metaReadLock = mLockManager.getMetaReadLock();
-    metaReadLock.lock();
+    mEvictionLock.writeLock().lock();
     EvictionPlan plan = mEvictor.freeSpace(bytes, tierHint);
-    metaReadLock.unlock();
-
-    if (!executeEvictionPlan(userId, plan)) {
-
-    }
+    boolean result = executeEvictionPlan(userId, plan);
+    mEvictionLock.writeLock().unlock();
+    return result;
   }
 
   /**

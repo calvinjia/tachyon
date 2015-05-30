@@ -20,10 +20,10 @@ import tachyon.worker.block.BlockMetadataManager;
 /**
  * A simple evictor that evicts random blocks until the required size in the target tier is met.
  */
-public class RandomEvictor implements Evictor {
+public class NaiveEvictor implements Evictor {
   private final BlockMetadataManager mMetadata;
 
-  public RandomEvictor(BlockMetadataManager metadata) {
+  public NaiveEvictor(BlockMetadataManager metadata) {
     mMetadata = metadata;
   }
 
