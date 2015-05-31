@@ -16,7 +16,7 @@
 package tachyon.worker.block;
 
 /**
- * Interface for listening on methods of {@link BlockStore}.
+ * Interface for listening on methods of {@link TieredBlockStore}.
  */
 public interface BlockStoreEventListener {
 

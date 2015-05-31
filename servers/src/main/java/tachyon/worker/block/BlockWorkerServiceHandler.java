@@ -35,9 +35,9 @@ import tachyon.worker.block.meta.BlockMeta;
  */
 public class BlockWorkerServiceHandler implements WorkerService.Iface {
 
-  private final BlockStore mBlockWorker;
+  private final TieredBlockStore mBlockWorker;
 
-  public BlockWorkerServiceHandler(BlockStore blockWorker) {
+  public BlockWorkerServiceHandler(TieredBlockStore blockWorker) {
     mBlockWorker = blockWorker;
   }
 

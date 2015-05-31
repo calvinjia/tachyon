@@ -36,7 +36,7 @@ import tachyon.worker.block.meta.BlockMeta;
 import tachyon.worker.block.meta.StorageTier;
 
 /**
- * Manages the metadata of all blocks in managed space. This information is used by the BlockStore,
+ * Manages the metadata of all blocks in managed space. This information is used by the TieredBlockStore,
  * Allocator and Evictor.
  * <p>
  * This class is thread-safe and all operations on block metadata such as StorageTier, StorageDir
