@@ -23,7 +23,7 @@ import com.google.common.base.Optional;
  * This interface represents an object store that manages and serves all the object (i.e., blocks)
  * in the local storage.
  */
-public interface BlockStore {
+public interface BlockStore<LocationHint> {
   enum BlockLockType {
     READ,  // A read lock
     WRITE,  // A write lock
@@ -34,54 +34,67 @@ public interface BlockStore {
   //
   /**
    * Creates a new block with data from a ByteBuffer.
+   * <p>
+   * This method is thread-safe and blocking.
    *
    * @param userId the user ID
    * @param blockId the block ID
    * @param buf the input buffer
-   * @param hint the hint how to create this block, e.g. tier for {@link TieredBlockStore}
+   * @param hint the hint on where to create this block, e.g. tier for {@link TieredBlockStore}
    * @return true if success, false otherwise
    */
-  boolean createBlock(long userId, long blockId, ByteBuffer buf, int hint);
+  boolean createBlock(long userId, long blockId, ByteBuffer buf, LocationHint hint);
 
   /**
    * Reads data from an existing block at a specific offset and length.
+   * <p>
+   * This method is thread-safe and blocking.
    *
    * @param userId the user ID
    * @param blockId the block ID
    * @param offset offset of the data to read in bytes
    * @param length length of the data to read in bytes
+   * @param hint the hint of the location to read this block
    * @return a ByteBuffer containing data read or absent
    */
-  Optional<ByteBuffer> readBlock(long userId, long blockId, long offset, long length);
+  Optional<ByteBuffer> readBlock(long userId, long blockId, long offset, long length,
+      LocationHint hint);
 
   /**
-   * Moves an existing block to another location in the storage.
+   * Relocates an existing block to another location in the storage.
+   * <p>
+   * This method is thread-safe and blocking.
    *
    * @param userId the user ID
    * @param blockId the block ID
    * @param hint the hint of the destination, e.g., destination tier for {@link TieredBlockStore}
    * @return true if success, false otherwise
    */
-  boolean moveBlock(long userId, long blockId, int hint);
+  boolean relocateBlock(long userId, long blockId, LocationHint hint);
 
   /**
-   * Removes an existing block from storage.
+   * Removes an existing block from a specific location.
+   * <p>
+   * This method is thread-safe and blocking.
    *
    * @param userId the user ID
    * @param blockId the block ID
+   * @param hint the hint of the location to remove this block
    * @return true if successful, false otherwise.
    */
-  boolean removeBlock(long userId, long blockId);
+  boolean removeBlock(long userId, long blockId, LocationHint hint);
 
   /**
    * Frees a certain amount of space.
+   * <p>
+   * This method is thread-safe and blocking.
    *
    * @param userId the user ID
    * @param bytes the space to free in bytes
    * @param hint the hint to free space. e.g., tier for {@link TieredBlockStore}
    * @return true if success, false otherwise
    */
-  boolean freeSpace(long userId, long bytes, int hint);
+  boolean freeSpace(long userId, long bytes, LocationHint hint);
 
   //
   // Only for local client on short-circuit operations. In other cases, please use the generic
