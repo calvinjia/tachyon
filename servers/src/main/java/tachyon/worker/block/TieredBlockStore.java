@@ -4,9 +4,9 @@
  * copyright ownership. The ASF licenses this file to You under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -47,7 +47,7 @@ import tachyon.worker.block.meta.BlockMeta;
  * <p>
  * This class is thread-safe.
  */
-public class TieredBlockStore implements BlockStore<int> {
+public class TieredBlockStore implements BlockStore<Integer> {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   private final TachyonConf mTachyonConf;
@@ -72,49 +72,57 @@ public class TieredBlockStore implements BlockStore<int> {
 
   @Override
   public Optional<Long> lockBlock(long userId, long blockId, BlockLockType blockLockType) {
-    Lock blockLock;
+    BlockLock blockLock = mLockManager.getBlockLock(blockId).orNull();
+    if (blockLock == null) {
+      LOG.error("Cannot find lock for block {}", blockId);
+      return Optional.absent();
+    }
     switch (blockLockType) {
       case READ:
-        blockLock = mLockManager.getBlockReadLock(blockId);
+        mEvictionLock.readLock().lock();
+        blockLock.readLock().lock();
         break;
       case WRITE:
-        blockLock = mLockManager.getBlockWriteLock(blockId);
+        mEvictionLock.readLock().lock();
+        blockLock.writeLock().lock();
         break;
       default:
-        LOG.error("Unsupported lock type %s", blockLockType);
-        return Optional.absent();
+        Preconditions.checkState(false, "We shall never reach here, %s", blockLockType);
     }
-    mEvictionLock.readLock().lock();
-    blockLock.lock();
-    return Optional.of(blockLock.);
+    return Optional.of(blockLock.getLockId());
   }
 
   @Override
-  public boolean unlockBlock(long blockId, BlockLockType blockLockType) {
-    Lock blockLock;
+  public boolean unlockBlock(long userId, long blockId, long lockId,
+      BlockLockType blockLockType) {
+    BlockLock blockLock = mLockManager.getBlockLock(blockId).orNull();
+    if (blockLock == null) {
+      LOG.error("Cannot find lock for block {}", blockId);
+      return false;
+    }
     switch (blockLockType) {
       case READ:
-        blockLock = mLockManager.getBlockReadLock(blockId);
+        blockLock.readLock().unlock();
+        mEvictionLock.readLock().unlock();
         break;
       case WRITE:
-        blockLock = mLockManager.getBlockWriteLock(blockId);
+        blockLock.writeLock().unlock();
+        mEvictionLock.readLock().unlock();
         break;
       default:
-        LOG.error("Unsupported lock type %s", blockLockType);
-        return false;
+        Preconditions.checkState(false, "We shall never reach here, %s", blockLockType);
     }
-    blockLock.unlock();
-    mEvictionLock.readLock().unlock();
     return true;
   }
 
   @Override
   public Optional<String> getBlockFilePath(long userId, long blockId, long lockId) {
-    Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
-    if (!optionalBlock.isPresent()) {
+    BlockMeta block = mMetaManager.getBlockMeta(blockId).orNull();
+    if (block == null) {
+      LOG.error("Cannot find block {}", blockId);
       return Optional.absent();
     }
-    return Optional.of(optionalBlock.get().getPath());
+    return Optional.of(block.getPath());
   }
 
   /**
@@ -128,7 +136,7 @@ public class TieredBlockStore implements BlockStore<int> {
    * @throws IOException
    */
   @Override
-  public boolean createBlock(long userId, long blockId, ByteBuffer buf, int tierHint)
+  public boolean createBlock(long userId, long blockId, ByteBuffer buf, Integer tierHint)
       throws IOException {
     Preconditions.checkNotNull(buf);
     mEvictor.preCreateBlock(userId, blockId, tierHint);
@@ -149,19 +157,18 @@ public class TieredBlockStore implements BlockStore<int> {
     }
 
     long blockSize = buf.limit();
-    Optional<BlockMeta> optionalBlock =
-        mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
-    if (!optionalBlock.isPresent()) {
+    BlockMeta block =
+        mAllocator.allocateBlock(userId, blockId, blockSize, tierHint).orNull();
+    if (block == null) {
       // Not enough space in this block store, let's try to free some space.
       if (freeSpaceNoLock(userId, blockSize, tierHint)) {
         LOG.error("Cannot free space of {} bytes", blockSize);
         return false;
       }
       // Try again
-      optionalBlock = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint);
-      Preconditions.checkState(optionalBlock.isPresent(), "Cannot create block {}:", blockId);
+      block = mAllocator.allocateBlock(userId, blockId, blockSize, tierHint).orNull();
+      Preconditions.checkState(block != null, "Cannot allocate block {}:", blockId);
     }
-    BlockMeta block = optionalBlock.get();
     if (!addBlockMetaNoLock(userId, block, tierHint)) {
       return false;
     }
@@ -182,7 +189,7 @@ public class TieredBlockStore implements BlockStore<int> {
    */
   @Override
   public Optional<ByteBuffer> readBlock(long userId, long blockId, long offset, long length,
-      int tierHint)
+      Integer tierHint)
       throws IOException {
     mEvictor.preReadBlock(userId, blockId, offset, length);
     Lock blockReadLock = mLockManager.getBlockReadLock(blockId);
@@ -199,11 +206,10 @@ public class TieredBlockStore implements BlockStore<int> {
 
   private Optional<ByteBuffer> readBlockNoLock(long userId, long blockId, long offset, long length)
       throws IOException {
-    Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
-    if (!optionalBlock.isPresent()) {
+    BlockMeta block = mMetaManager.getBlockMeta(blockId).orNull();
+    if (block == null) {
       return Optional.absent();
     }
-    BlockMeta block = optionalBlock.get();
     BlockFileOperator operator = new BlockFileOperator(block);
     return Optional.of(operator.read(offset, length));
   }
@@ -218,8 +224,8 @@ public class TieredBlockStore implements BlockStore<int> {
    * @throws IOException
    */
   @Override
-  public boolean relocateBlock(long userId, long blockId, int newTierHint) throws IOException {
-    mEvictor.preMoveBlock(userId, blockId, newTierHint);
+  public boolean relocateBlock(long userId, long blockId, Integer newTierHint) throws IOException {
+    mEvictor.preRelocateBlock(userId, blockId, newTierHint);
     Lock blockWriteLock = mLockManager.getBlockWriteLock(blockId);
 
     mEvictionLock.readLock().lock();
@@ -228,22 +234,19 @@ public class TieredBlockStore implements BlockStore<int> {
     blockWriteLock.unlock();
     mEvictionLock.readLock().unlock();
 
-    mEvictor.postMoveBlock(userId, blockId, newTierHint);
+    mEvictor.postRelocateBlock(userId, blockId, newTierHint);
     return result;
   }
 
-
   private boolean relocateBlockNoLock(long userId, long blockId, int newTierHint) throws IOException {
-    Optional<BlockMeta> optionalSrcBlock = mMetaManager.getBlockMeta(userId);
-    if (!optionalSrcBlock.isPresent()) {
+    BlockMeta srcBlock = mMetaManager.getBlockMeta(userId).orNull();
+    if (srcBlock == null) {
       return false;
     }
-    Optional<BlockMeta> optionalDstBlock = mMetaManager.moveBlockMeta(userId, blockId, newTierHint);
-    if (!optionalDstBlock.isPresent()) {
+    BlockMeta dstBlock = mMetaManager.moveBlockMeta(userId, blockId, newTierHint).orNull();
+    if (dstBlock == null) {
       return false;
     }
-    BlockMeta srcBlock = optionalSrcBlock.get();
-    BlockMeta dstBlock = optionalDstBlock.get();
     BlockFileOperator operator = new BlockFileOperator(srcBlock);
     return operator.move(dstBlock.getPath());
   }
@@ -258,7 +261,7 @@ public class TieredBlockStore implements BlockStore<int> {
    * @throws FileNotFoundException
    */
   @Override
-  public boolean removeBlock(long userId, long blockId) throws FileNotFoundException {
+  public boolean removeBlock(long userId, long blockId, Integer tierAlias) throws FileNotFoundException {
     mEvictor.preRemoveBlock(userId, blockId);
     Lock blockWriteLock = mLockManager.getBlockWriteLock(blockId);
 
@@ -274,11 +277,10 @@ public class TieredBlockStore implements BlockStore<int> {
   }
 
   private boolean removeBlockNoLock(long userId, long blockId) throws FileNotFoundException {
-    Optional<BlockMeta> optionalBlock = mMetaManager.getBlockMeta(blockId);
-    if (!optionalBlock.isPresent()) {
+    BlockMeta block = mMetaManager.getBlockMeta(blockId).orNull();
+    if (block == null) {
       return false;
     }
-    BlockMeta block = optionalBlock.get();
     if (!block.isCheckpointed()) {
       LOG.error("Cannot free block {}: not checkpointed", blockId);
       return false;
@@ -303,7 +305,7 @@ public class TieredBlockStore implements BlockStore<int> {
    * @throws IOException
    */
   @Override
-  public boolean freeSpace(long userId, long bytes, int tierHint) throws IOException {
+  public boolean freeSpace(long userId, long bytes, Integer tierHint) throws IOException {
     mEvictionLock.writeLock().lock();
     boolean result = freeSpaceNoLock(userId, bytes, tierHint);
     mEvictionLock.writeLock().unlock();

@@ -28,9 +28,9 @@ public interface BlockStoreEventListener {
 
   void postReadBlock(long userId, long blockId, long offset, long length);
 
-  void preMoveBlock(long userId, long blockId, int newTierHint);
+  void preRelocateBlock(long userId, long blockId, int newTierHint);
 
-  void postMoveBlock(long userId, long blockId, int newTierHint);
+  void postRelocateBlock(long userId, long blockId, int newTierHint);
 
   void preRemoveBlock(long userId, long blockId);
 
