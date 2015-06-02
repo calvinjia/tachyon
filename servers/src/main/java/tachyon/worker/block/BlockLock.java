@@ -9,6 +9,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * A ReadWrite Lock to guard one block. There should be only one lock per block.
  */
 public class BlockLock implements ReadWriteLock {
+  public enum BlockLockType {
+    READ,  // A read lock
+    WRITE,  // A write lock
+  }
+
   static final AtomicLong mBlockLockId = new AtomicLong(0);
 
   private final ReentrantReadWriteLock mLock;
