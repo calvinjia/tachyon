@@ -27,14 +27,12 @@ public class BlockMeta {
   private final long mBlockSize;
   private final String mPath;
   private final String mTmpPath;
-  private boolean mCheckpointed;
 
   public BlockMeta(long blockId, long blockSize, String localPath) {
     mBlockId = blockId;
     mBlockSize = blockSize;
     mPath = CommonUtils.concatPath(localPath, blockId);
     mTmpPath = CommonUtils.concatPath(localPath, UUID.randomUUID());
-    mCheckpointed = false;
   }
 
   public long getBlockId() {
@@ -51,9 +49,5 @@ public class BlockMeta {
 
   public String getTmpPath() {
     return mTmpPath;
-  }
-
-  public boolean isCheckpointed() {
-    return mCheckpointed;
   }
 }
