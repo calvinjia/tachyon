@@ -17,11 +17,14 @@ package tachyon.worker.block;
 
 import com.google.common.base.Optional;
 
+import tachyon.worker.BlockStoreLocation;
 import tachyon.worker.block.meta.BlockMeta;
 
 /**
  * This interface represents a blob store that manages and serves all the blobs (i.e., blocks) in
  * the local storage.
+ * <p>
+ * TODO: rename this store to blob store.
  */
 public interface BlockStore {
 
@@ -32,7 +35,7 @@ public interface BlockStore {
    * @param userId ID of the user to lock this block
    * @param blockId ID of the block to lock
    * @param blockLockType the lock type
-   * @return the lock ID if the lock has been acquired, absent otherwise
+   * @return the lock ID if the lock is acquired successfully, {@link Optional#absent()} otherwise
    */
   Optional<Long> lockBlock(long userId, long blockId, BlockLock.BlockLockType blockLockType);
 
@@ -47,63 +50,69 @@ public interface BlockStore {
   boolean unlockBlock(long userId, long blockId, long lockId);
 
   /**
-   * Creates a new block in a temporary path in the specific location. This method will create the
-   * meta data of this block and assign a temporary path to store its data. Before commit, all data
-   * of this newly created block will be stored in the temp path and the block is only "visible" to
-   * its writer client.
+   * Creates the meta data of a new block and assigns a temporary path (e.g., a subdir of the final
+   * location named after the the user ID) to store its data. This method only creates the meta data
+   * but adds NO data to this temporary location. The location can be a specific location, or
+   * {@link BlockStoreLocation#anyTier()} if any location in the store is fine.
+   * <p>
+   * Before commit, all the data written to this block will be stored in the temp path and the block
+   * is only "visible" to its writer client.
    *
    * @param userId the user ID
    * @param blockId the block ID
    * @param location location to create this block
    * @return block meta if success, absent otherwise
    */
-  Optional<BlockMeta> createBlock(long userId, long blockId, BlockLocation location);
+  Optional<BlockMeta> createBlockMeta(long userId, long blockId, BlockStoreLocation location);
 
   /**
    * Commits a temporary block to the local store and returns the updated meta data. After commit,
-   * the block will be available in this block store for all clients.
+   * the block will be available in this block store for all clients. Since a temp block is
+   * "private" to the writer, this method requires no proceeding lock acquired.
    *
-   * @param userId the user ID
-   * @param blockId the block ID
+   * @param userId the ID of the user
+   * @param blockId the ID of a temp block
    * @return block meta if success, absent otherwise
    */
   Optional<BlockMeta> commitBlock(long userId, long blockId);
 
   /**
    * Aborts a temporary block. The meta data of this block will not be added, its data will be
-   * deleted and the space will be reclaimed.
+   * deleted and the space will be reclaimed. Since a temp block is "private" to the writer, this
+   * requires no proceeding lock acquired.
    *
-   * @param userId the user ID
-   * @param blockId the block ID
+   * @param userId the ID of the user
+   * @param blockId the ID of a temp block
    * @return true if success, false otherwise
    */
   boolean abortBlock(long userId, long blockId);
 
   /**
-   * Requests more space for a temporary block
+   * Requests to increase the size of a temp block. Since a temp block is "private" to the writer,
+   * this requires no proceeding lock acquired.
    *
    * @param userId the user ID
    * @param size the amount of more space to request in bytes
-   * @return the amount of space requested
+   * @return true if success, false otherwise
    */
-  long requestSpace(long userId, long size);
+  boolean requestSpace(long userId, long blockId, long size);
 
   /**
-   * Creates a writer on the block content to write data to this block.
+   * Creates a writer on a temp block to write data to this block.
    *
    * @param userId the user ID
-   * @param blockId the block ID
+   * @param blockId the block ID (must be a temp block)
    * @return a BlockWriter instance on this block if success, absent otherwise
    */
   Optional<BlockWriter> getBlockWriter(long userId, long blockId);
 
   /**
-   * Creates a reader on the block content to read data from this block.
+   * Creates a reader on an existing block to read data from this block.
    * <p>
    * This method requires the lock ID returned by a proceeding {@link #lockBlock}.
    *
    * @param userId the user ID
-   * @param blockId the block ID
+   * @param blockId the block ID (must be an existing block)
    * @param lockId the lock ID
    * @return a BlockReader instance on this block if success, absent otherwise
    */
@@ -112,13 +121,16 @@ public interface BlockStore {
   /**
    * Copies an existing block to another location in the storage. If the block can not be found or
    * the new location doesn't have enough space, return false.
+   * <p>
+   * This method requires the lock ID returned by a proceeding {@link #lockBlock}.
    *
    * @param userId the user ID
    * @param blockId the block ID
+   * @param lockId the lock ID
    * @param location the location of the destination
    * @return true if success, false otherwise
    */
-  boolean copyBlock(long userId, long blockId, BlockLocation location);
+  boolean copyBlock(long userId, long blockId, long lockId, BlockStoreLocation location);
 
   /**
    * Removes an existing block from a specific location. If the block can not be found, return
@@ -126,21 +138,32 @@ public interface BlockStore {
    *
    * @param userId the user ID
    * @param blockId the block ID
+   * @param lockId the lock ID
    * @param location the location to remove this block
    * @return true if successful, false otherwise.
    */
-  boolean removeBlock(long userId, long blockId, BlockLocation location);
+  boolean removeBlock(long userId, long blockId, long lockId, BlockStoreLocation location);
 
   /**
-   * Gets the file meta of the specific block in local storage. If the block can not be found,
-   * return absent.
+   * Notify the block store that a block was accessed (so the block store could update accordingly
+   * the evictor and allocator.
+   *
+   * @param userId the user ID
+   * @param blockId the block ID
+   * @param offset the offset in bytes
+   * @param length the length in bytes
+   */
+  void accessBlock(long userId, long blockId, long offset, long length);
+
+  /**
+   * Gets the meta data of a specific block in local storage.
    * <p>
    * This method requires the lock ID returned by a proceeding {@link #lockBlock}.
    *
    * @param userId ID of the user to get this file
    * @param blockId ID of the block
    * @param lockId ID of the lock
-   * @return the block meta, or absent if not found.
+   * @return the block meta, or {@link Optional#absent()} if the block can not be found.
    */
   Optional<BlockMeta> getBlockMeata(long userId, long blockId, long lockId);
 
@@ -152,11 +175,21 @@ public interface BlockStore {
   StoreMeta getStoreMeta();
 
   /**
-   * Cleans up the data associated with a specific user (typically a dead user), e.g., the un
-   * released locks by this user.
+   * Cleans up the data associated with a specific user (typically a dead user), e.g., unlock the
+   * unreleased locks by this user, reclaim space of temp blocks created by this user.
    *
    * @param userId user ID
-   * @return true if success, false otherwise
+   * @return true if success, false otherwise (e.g., cannot delete file)
    */
   boolean cleanupUser(long userId);
+
+  /**
+   * Frees a certain amount of space in the specified location according to the eviction policy.
+   *
+   * @param userId the user ID
+   * @param size the amount of space to free in bytes
+   * @param location the location to free space
+   * @return true if success, false otherwise
+   */
+  boolean freeSpace(long userId, long size, BlockStoreLocation location);
 }
