@@ -40,14 +40,12 @@ public interface BlockStore {
   Optional<Long> lockBlock(long userId, long blockId, BlockLock.BlockLockType blockLockType);
 
   /**
-   * Unlocks a block which has been locked before by {@link #lockBlock}.
+   * Release an acquired lock on a block previously by {@link #lockBlock}.
    *
-   * @param userId ID of the user to unlock this block
-   * @param blockId ID of the block to unlock
    * @param lockId ID of the lock returned by {@link #lockBlock}
    * @return true if the lock has been released, false otherwise
    */
-  boolean unlockBlock(long userId, long blockId, long lockId);
+  boolean unlockBlock(long lockId);
 
   /**
    * Creates the meta data of a new block and assigns a temporary path (e.g., a subdir of the final
@@ -98,7 +96,8 @@ public interface BlockStore {
   boolean requestSpace(long userId, long blockId, long size);
 
   /**
-   * Creates a writer on a temp block to write data to this block.
+   * Creates a writer of a temp block to write data to this block. Since a temp block is "private"
+   * to the writer, this requires no proceeding lock acquired.
    *
    * @param userId the user ID
    * @param blockId the block ID (must be a temp block)
@@ -107,7 +106,7 @@ public interface BlockStore {
   Optional<BlockWriter> getBlockWriter(long userId, long blockId);
 
   /**
-   * Creates a reader on an existing block to read data from this block.
+   * Creates a reader of an existing block to read data from this block.
    * <p>
    * This method requires the lock ID returned by a proceeding {@link #lockBlock}.
    *
@@ -127,10 +126,10 @@ public interface BlockStore {
    * @param userId the user ID
    * @param blockId the block ID
    * @param lockId the lock ID
-   * @param location the location of the destination
+   * @param newLocation the location of the destination
    * @return true if success, false otherwise
    */
-  boolean copyBlock(long userId, long blockId, long lockId, BlockStoreLocation location);
+  boolean copyBlock(long userId, long blockId, long lockId, BlockStoreLocation newLocation);
 
   /**
    * Removes an existing block from a specific location. If the block can not be found, return
