@@ -27,6 +27,7 @@ import tachyon.thrift.OutOfSpaceException;
 import tachyon.thrift.SuspectedFileSizeException;
 import tachyon.thrift.TachyonException;
 import tachyon.thrift.WorkerService;
+import tachyon.worker.CoreWorker;
 import tachyon.worker.block.meta.BlockMeta;
 
 /**
@@ -35,10 +36,10 @@ import tachyon.worker.block.meta.BlockMeta;
  */
 public class BlockWorkerServiceHandler implements WorkerService.Iface {
 
-  private final TieredBlockStore mBlockWorker;
+  private final CoreWorker mWorker;
 
-  public BlockWorkerServiceHandler(TieredBlockStore blockWorker) {
-    mBlockWorker = blockWorker;
+  public BlockWorkerServiceHandler(CoreWorker worker) {
+    mWorker = worker;
   }
 
   /**

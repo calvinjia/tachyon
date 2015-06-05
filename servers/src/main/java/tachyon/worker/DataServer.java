@@ -31,12 +31,12 @@ import tachyon.util.CommonUtils;
 public interface DataServer extends Closeable {
 
   class Factory {
-    public static DataServer createDataServer(final InetSocketAddress dataAddress, TachyonConf conf) {
+    public static DataServer createDataServer(TachyonConf conf, CoreWorker worker) {
       try {
         return CommonUtils.createNewClassInstance(
             conf.getClass(Constants.WORKER_DATA_SERVER, ServerConstants.WORKER_DATA_SERVER_CLASS),
-            new Class[] { InetSocketAddress.class, TachyonConf.class },
-            new Object[] { dataAddress, conf });
+            new Class[] { TachyonConf.class, CoreWorker.class },
+            new Object[] { conf, worker });
       } catch (Exception e) {
         throw Throwables.propagate(e);
       }
