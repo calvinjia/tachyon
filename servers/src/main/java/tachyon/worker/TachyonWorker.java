@@ -1,4 +1,4 @@
-package tachyon.worker.core;
+package tachyon.worker;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

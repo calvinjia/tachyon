@@ -13,16 +13,24 @@
  * the License.
  */
 
-package tachyon;
-
-import tachyon.worker.DataServer;
+package tachyon.worker.netty;
 
 /**
- * Constants on server side
+ * How a read response will transfer block data over the network. There is a difference in speed and
+ * memory consumption between the two. {@link #MAPPED} is the default since at larger sizes it
+ * outperforms {@link #TRANSFER}
  */
-public class ServerConstants {
+public enum FileTransferType {
+  /**
+   * Uses a {@link java.nio.MappedByteBuffer} to transfer data over the network
+   */
+  MAPPED,
 
-  public static final Class<? extends DataServer> WORKER_DATA_SERVER_CLASS =
-      tachyon.worker.netty.NettyDataServer.class;
-
+  /**
+   * Uses
+   * {@link java.nio.channels.FileChannel#transferTo(long, long,
+   * java.nio.channels.WritableByteChannel)}
+   * to transfer data over the network
+   */
+  TRANSFER
 }

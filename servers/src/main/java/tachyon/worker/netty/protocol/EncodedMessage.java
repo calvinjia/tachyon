@@ -13,16 +13,23 @@
  * the License.
  */
 
-package tachyon;
+package tachyon.worker.netty.protocol;
 
-import tachyon.worker.DataServer;
+import io.netty.buffer.ByteBuf;
 
-/**
- * Constants on server side
- */
-public class ServerConstants {
+public interface EncodedMessage {
 
-  public static final Class<? extends DataServer> WORKER_DATA_SERVER_CLASS =
-      tachyon.worker.netty.NettyDataServer.class;
+  /**
+   * Returns the number bytes for the message when it is encoded.
+   *
+   * @return the length of the encoded message, in bytes.
+   */
+  int getEncodedLength();
 
+  /**
+   * Encodes the message to the output {@link ByteBuf}.
+   *
+   * @param out the output ByteBuf where the message should be encoded.
+   */
+  void encode(ByteBuf out);
 }

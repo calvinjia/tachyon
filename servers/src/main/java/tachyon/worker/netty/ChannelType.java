@@ -13,16 +13,32 @@
  * the License.
  */
 
-package tachyon;
+package tachyon.worker.netty;
 
-import tachyon.worker.DataServer;
+import io.netty.channel.epoll.Epoll;
 
 /**
- * Constants on server side
+ * What type of netty channel to use. NIO and EPOLL are supported currently.
  */
-public class ServerConstants {
+public enum ChannelType {
+  NIO,
+  /**
+   * Use Linux's epoll for channel API. This type of channel only works on Linux.
+   */
+  EPOLL;
 
-  public static final Class<? extends DataServer> WORKER_DATA_SERVER_CLASS =
-      tachyon.worker.netty.NettyDataServer.class;
-
+  /**
+   * Determines the default type to use based off the system.
+   * <p>
+   * On Linux-based systems, {@link #EPOLL} is the default type for more consistent performance,
+   * otherwise {@link #NIO}.
+   * </p>
+   */
+  public static ChannelType defaultType() {
+    if (Epoll.isAvailable()) {
+      return ChannelType.EPOLL;
+    } else {
+      return ChannelType.NIO;
+    }
+  }
 }
