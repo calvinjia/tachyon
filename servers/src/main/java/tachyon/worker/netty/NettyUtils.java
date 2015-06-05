@@ -38,7 +38,7 @@ public final class NettyUtils {
    *        threads.
    */
   public static EventLoopGroup createEventLoop(ChannelType type, int numThreads,
-      String threadPrefix) {
+                                               String threadPrefix) {
     ThreadFactory threadFactory = ThreadFactoryUtils.build(threadPrefix);
 
     switch (type) {
