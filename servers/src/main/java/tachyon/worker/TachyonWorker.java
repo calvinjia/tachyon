@@ -1,20 +1,30 @@
 package tachyon.worker;
 
+import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.google.common.base.Throwables;
+
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.server.TThreadPoolServer;
+import org.apache.thrift.transport.TFramedTransport;
+import org.apache.thrift.transport.TServerSocket;
+import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import tachyon.Constants;
 import tachyon.conf.TachyonConf;
+import tachyon.thrift.NetAddress;
+import tachyon.thrift.WorkerService;
+import tachyon.util.NetworkUtils;
 import tachyon.util.ThreadFactoryUtils;
 import tachyon.worker.block.BlockWorkerServiceHandler;
-import tachyon.worker.block.TieredBlockStore;
 
 /**
- * The main program that runs the Tachyon Worker. The Tachyon Worker is responsible for managing
- * its own local Tachyon space as well as its under storage system space.
+ * The main program that runs the Tachyon Worker. The Tachyon Worker is responsible for managing its
+ * own local Tachyon space as well as its under storage system space.
  */
 public class TachyonWorker {
   private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
@@ -23,31 +33,24 @@ public class TachyonWorker {
   private CoreWorker mCoreWorker;
   private DataServer mDataServer;
   private ExecutorService mHeartbeatExecutorService;
+  private NetAddress mWorkerNetAddress;
+  private TachyonConf mTachyonConf;
+  private TServerSocket mThriftServerSocket;
+  private TThreadPoolServer mThriftServer;
   private boolean shouldRun;
+  private int mThriftPort;
 
   public TachyonWorker(TachyonConf tachyonConf) {
+    mTachyonConf = tachyonConf;
     mCoreWorker = new CoreWorker();
-    mDataServer = DataServer.Factory.createDataServer(tachyonConf, mCoreWorker);
+    mDataServer = DataServer.Factory.createDataServer(mTachyonConf, mCoreWorker);
     mServiceHandler = new BlockWorkerServiceHandler(mCoreWorker);
-
-    try {
-      LOG.info("Tachyon Worker version " + Version.VERSION + " tries to start @ " + workerAddress);
-      WorkerService.Processor<WorkerServiceHandler> processor =
-          new WorkerService.Processor<WorkerServiceHandler>(mWorkerServiceHandler);
-
-      mServerTServerSocket = new TServerSocket(workerAddress);
-      mPort = NetworkUtils.getPort(mServerTServerSocket);
-
-      mServer =
-          new TThreadPoolServer(new TThreadPoolServer.Args(mServerTServerSocket)
-              .minWorkerThreads(minWorkerThreads).maxWorkerThreads(maxWorkerThreads)
-              .processor(processor).transportFactory(new TFramedTransport.Factory())
-              .protocolFactory(new TBinaryProtocol.Factory(true, true)));
-    } catch (TTransportException e) {
-      LOG.error(e.getMessage(), e);
-      throw Throwables.propagate(e);
-    }
-
+    mThriftServerSocket = createThriftServerSocket();
+    mThriftPort = NetworkUtils.getPort(mThriftServerSocket);
+    mThriftServer = createThriftServer();
+    mWorkerNetAddress =
+        new NetAddress(getWorkerAddress().getAddress().getCanonicalHostName(), mThriftPort,
+            mDataServer.getPort());
     mHeartbeatExecutorService =
         Executors.newFixedThreadPool(1, ThreadFactoryUtils.daemon("worker-heartbeat-%d"));
   }
@@ -71,6 +74,35 @@ public class TachyonWorker {
     }
   }
 
-  public void join() {
+  private TServerSocket createThriftServerSocket() {
+    try {
+      return new TServerSocket(getWorkerAddress());
+    } catch (TTransportException tte) {
+      LOG.error(tte.getMessage(), tte);
+      throw Throwables.propagate(tte);
+    }
   }
+
+  private TThreadPoolServer createThriftServer() {
+    int minWorkerThreads =
+        mTachyonConf.getInt(Constants.WORKER_MIN_WORKER_THREADS, Runtime.getRuntime()
+            .availableProcessors());
+    int maxWorkerThreads =
+        mTachyonConf.getInt(Constants.WORKER_MAX_WORKER_THREADS,
+            Constants.DEFAULT_WORKER_MAX_WORKER_THREADS);
+    WorkerService.Processor<BlockWorkerServiceHandler> processor =
+        new WorkerService.Processor<BlockWorkerServiceHandler>(mServiceHandler);
+    return new TThreadPoolServer(new TThreadPoolServer.Args(mThriftServerSocket)
+        .minWorkerThreads(minWorkerThreads).maxWorkerThreads(maxWorkerThreads).processor(processor)
+        .transportFactory(new TFramedTransport.Factory())
+        .protocolFactory(new TBinaryProtocol.Factory(true, true)));
+  }
+
+  private InetSocketAddress getWorkerAddress() {
+    String workerHostname = NetworkUtils.getLocalHostName(mTachyonConf);
+    int workerPort = mTachyonConf.getInt(Constants.WORKER_PORT, Constants.DEFAULT_WORKER_PORT);
+    return new InetSocketAddress(workerHostname, workerPort);
+  }
+
+  public void join() {}
 }
