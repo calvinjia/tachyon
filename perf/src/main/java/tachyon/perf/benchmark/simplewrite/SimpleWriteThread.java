@@ -56,11 +56,12 @@ public class SimpleWriteThread extends PerfThread {
 
   @Override
   public void run() {
+    LOG.info("Starting write!");
     long timeMs = System.currentTimeMillis();
     long writeBytes = 0;
     Runtime.getRuntime().addShutdownHook(new Thread() {
       public void run() {
-        System.out.println("Exiting JVM!");
+        LOG.info("Exiting JVM!");
       }
     });
     mSuccess = true;
