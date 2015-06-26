@@ -4,9 +4,9 @@
  * copyright ownership. The ASF licenses this file to You under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
  * or implied. See the License for the specific language governing permissions and limitations under
@@ -58,6 +58,11 @@ public class SimpleWriteThread extends PerfThread {
   public void run() {
     long timeMs = System.currentTimeMillis();
     long writeBytes = 0;
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+      public void run() {
+        System.out.println("Exiting JVM!");
+      }
+    });
     mSuccess = true;
     for (String fileName : mWriteFiles) {
       try {
@@ -66,6 +71,9 @@ public class SimpleWriteThread extends PerfThread {
         writeBytes += mFileLength;
       } catch (IOException e) {
         LOG.error("Failed to write file " + fileName, e);
+        mSuccess = false;
+      } catch (Throwable t) {
+        LOG.error("Failure due to throwable", t);
         mSuccess = false;
       }
     }
