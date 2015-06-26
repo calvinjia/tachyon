@@ -123,10 +123,15 @@ public class BlockOutStream extends OutStream {
       }
     }
 
-    MappedByteBuffer out = mLocalFileChannel.map(MapMode.READ_WRITE, mInFileBytes, length);
-    out.put(buf, offset, length);
-    mInFileBytes += length;
-    mAvailableBytes -= length;
+    LOG.info("Appending buffer. BlockId: " + mBlockId + "| Size: " + mInFileBytes);
+    try {
+      MappedByteBuffer out = mLocalFileChannel.map(MapMode.READ_WRITE, mInFileBytes, length);
+      out.put(buf, offset, length);
+      mInFileBytes += length;
+      mAvailableBytes -= length;
+    } finally {
+      LOG.info("Success appending buffer. BlockId: " + mBlockId + "| New Size: " + mInFileBytes);
+    }
   }
 
   @Override
@@ -154,7 +159,9 @@ public class BlockOutStream extends OutStream {
         appendCurrentBuffer(mBuffer.array(), 0, mBuffer.position());
       }
       mCloser.close();
+      LOG.info("Commit block: " + mBlockId);
       mTachyonFS.cacheBlock(mBlockId);
+      LOG.info("Succeeded committing block " + mBlockId);
       mClosed = true;
     }
   }

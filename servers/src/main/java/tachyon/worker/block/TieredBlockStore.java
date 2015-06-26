@@ -158,6 +158,8 @@ public class TieredBlockStore implements BlockStore {
       freeSpaceInternal(userId, moreBytes, location);
       // Increase the size of this temp block
       mMetaManager.resizeTempBlockMeta(tempBlockMeta, tempBlockMeta.getBlockSize() + moreBytes);
+      LOG.info("Resized block " + blockId + " to " + tempBlockMeta.getBlockSize() + " space left "
+          + " in dir: " + tempBlockMeta.getParentDir().getAvailableBytes());
     } finally {
       mEvictionLock.writeLock().unlock();
     }
