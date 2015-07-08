@@ -172,6 +172,7 @@ public class BlockDataManager {
     for (long user : mUsers.getTimedOutUsers()) {
       mUsers.removeUser(user);
       mBlockStore.cleanupUser(user);
+      LOG.info("Successfully cleaned up user " + user);
     }
   }
 

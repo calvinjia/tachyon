@@ -265,6 +265,7 @@ public class TieredBlockStore implements BlockStore {
 
   @Override
   public void cleanupUser(long userId) throws IOException {
+    LOG.info("Cleaning up tiered store for user: " + userId);
     List<TempBlockMeta> tempBlocksToRemove = mMetaManager.getUserTempBlocks(userId);
     // TODO: fix the block removing below, there is possible risk condition when the client which
     // is considered "dead" may still be using or committing this block.
@@ -281,6 +282,8 @@ public class TieredBlockStore implements BlockStore {
       }
       if (!new File(fileName).delete()) {
         LOG.error("Error in cleanup userId {}: cannot delete file {}", userId, fileName);
+      } else {
+        LOG.info("Deleted: " + fileName);
       }
     }
     // TODO: Cleanup the user folder across tiered storage.
@@ -290,9 +293,13 @@ public class TieredBlockStore implements BlockStore {
       }
     }
 
+    LOG.info("Cleaned up tiered store data, cleaning up metadata for user: " + userId);
+
     mEvictionLock.readLock().lock();
     mMetaManager.cleanupUser(userId);
+    LOG.info("Cleaned up tiered store metadata, cleaning up locks for user: " + userId);
     mLockManager.cleanupUser(userId);
+    LOG.info("Cleaned up tiered store locks for user: " + userId);
     mEvictionLock.readLock().unlock();
   }
 
