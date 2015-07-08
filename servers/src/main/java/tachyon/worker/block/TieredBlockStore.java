@@ -439,9 +439,12 @@ public class TieredBlockStore implements BlockStore {
 
     // 1. remove blocks to make room.
     for (long blockId : plan.toEvict()) {
+      LOG.info("Attempting to lock block " + blockId);
       long lockId = mLockManager.lockBlock(userId, blockId, BlockLockType.WRITE);
+      LOG.info("Write lock acquired");
       try {
         removeBlockNoLock(userId, blockId);
+        LOG.info("Deleted block " + blockId);
         synchronized (mBlockStoreEventListeners) {
           for (BlockStoreEventListener listener : mBlockStoreEventListeners) {
             listener.onRemoveBlockByWorker(userId, blockId);
@@ -451,6 +454,7 @@ public class TieredBlockStore implements BlockStore {
         throw new IOException("Failed to free space: cannot evict block " + blockId);
       } finally {
         mLockManager.unlockBlock(lockId);
+        LOG.info("Unlocked block " + blockId);
       }
     }
     // 2. transfer blocks among tiers.
@@ -491,5 +495,6 @@ public class TieredBlockStore implements BlockStore {
         }
       }
     }
+    LOG.info("Free space complete");
   }
 }
