@@ -399,6 +399,7 @@ public class StorageDir {
    * @return A list of temp blocks removed from this dir
    */
   public List<TempBlockMeta> cleanupUser(long userId) {
+    LOG.info("Cleaning up user " + userId + " for dir " + mDirPath);
     List<TempBlockMeta> blocksToRemove = new ArrayList<TempBlockMeta>();
     Set<Long> userTempBlocks = mUserIdToTempBlockIdsMap.get(userId);
     if (userTempBlocks != null) {
@@ -407,6 +408,7 @@ public class StorageDir {
         if (tempBlock != null) {
           blocksToRemove.add(tempBlock);
           reclaimSpace(tempBlock.getBlockSize(), false);
+          LOG.info("Deleted temp block " + tempBlock + " for user " + userId);
         } else {
           LOG.error("Cannot find blockId {} when cleanup userId {}", blockId, userId);
         }

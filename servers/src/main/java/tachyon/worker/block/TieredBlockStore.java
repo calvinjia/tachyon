@@ -296,6 +296,7 @@ public class TieredBlockStore implements BlockStore {
     LOG.info("Cleaned up tiered store data, cleaning up metadata for user: " + userId);
 
     mEvictionLock.readLock().lock();
+    LOG.info("Eviction read lock acquired.");
     mMetaManager.cleanupUser(userId);
     LOG.info("Cleaned up tiered store metadata, cleaning up locks for user: " + userId);
     mLockManager.cleanupUser(userId);
