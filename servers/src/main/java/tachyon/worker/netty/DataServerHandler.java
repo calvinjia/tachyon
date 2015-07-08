@@ -89,6 +89,8 @@ public final class DataServerHandler extends SimpleChannelInboundHandler<RPCMess
     final long offset = req.getOffset();
     final long len = req.getLength();
     long lockId;
+
+    LOG.info("Handling remote block request for block: " + blockId);
     try {
       lockId = mDataManager.lockBlock(Users.DATASERVER_USER_ID, blockId);
     } catch (IOException ioe) {
@@ -97,10 +99,13 @@ public final class DataServerHandler extends SimpleChannelInboundHandler<RPCMess
       ChannelFuture future = ctx.writeAndFlush(resp);
       future.addListener(ChannelFutureListener.CLOSE);
       return;
+    } finally {
+      LOG.info("Lock acquired for handling remote block request for block: " + blockId);
     }
 
-    BlockReader reader = mDataManager.readBlockRemote(Users.DATASERVER_USER_ID, blockId, lockId);
+    BlockReader reader = null;
     try {
+      reader = mDataManager.readBlockRemote(Users.DATASERVER_USER_ID, blockId, lockId);
       req.validate();
       final long fileLength = reader.getLength();
       validateBounds(req, fileLength);
@@ -123,6 +128,7 @@ public final class DataServerHandler extends SimpleChannelInboundHandler<RPCMess
       }
     } finally {
       mDataManager.unlockBlock(lockId);
+      LOG.info("Lock released for handling remote block request for block: " + blockId);
     }
   }
 
