@@ -429,7 +429,9 @@ public class TieredBlockStore implements BlockStore {
   // This method must be guarded by WRITE lock of mEvictionLock
   private void freeSpaceInternal(long userId, long availableBytes, BlockStoreLocation location)
       throws IOException {
+    LOG.info("Evictor finding space...");
     EvictionPlan plan = mEvictor.freeSpace(availableBytes, location);
+    LOG.info("The eviction plan is " + plan);
     // Absent plan means failed to evict enough space.
     if (plan == null) {
       throw new IOException("Failed to free space: no eviction plan by evictor");
