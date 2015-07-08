@@ -185,6 +185,7 @@ public class TieredBlockStore implements BlockStore {
   public void requestSpace(long userId, long blockId, long additionalBytes) throws IOException {
     // TODO: Change the lock to read lock and only upgrade to write lock if necessary
     mEvictionLock.writeLock().lock();
+    LOG.info("Request space holds write lock, user " + userId + " block " + blockId);
     try {
       TempBlockMeta tempBlockMeta = mMetaManager.getTempBlockMeta(blockId);
       freeSpaceInternal(userId, additionalBytes, tempBlockMeta.getBlockLocation());
@@ -193,6 +194,7 @@ public class TieredBlockStore implements BlockStore {
           + additionalBytes);
     } finally {
       mEvictionLock.writeLock().unlock();
+      LOG.info("Request space frees write lock, user " + userId + " block " + blockId);
     }
   }
 
@@ -256,10 +258,12 @@ public class TieredBlockStore implements BlockStore {
   public void freeSpace(long userId, long availableBytes, BlockStoreLocation location)
       throws IOException {
     mEvictionLock.writeLock().lock();
+    LOG.info("Free space holds write lock, user " + userId);
     try {
       freeSpaceInternal(userId, availableBytes, location);
     } finally {
       mEvictionLock.writeLock().unlock();
+      LOG.info("Free space frees write lock, user " + userId);
     }
   }
 
@@ -333,12 +337,14 @@ public class TieredBlockStore implements BlockStore {
       // happen between unlock and lock.
       mEvictionLock.readLock().unlock();
       mEvictionLock.writeLock().lock();
+      LOG.info("Create Block Meta holds write lock, user " + userId + " block " + blockId);
       try {
         freeSpaceInternal(userId, initialBlockSize, location);
       } finally {
         // Downgrade to read lock again after eviction. Lock before unlock is intentional.
         mEvictionLock.readLock().lock();
         mEvictionLock.writeLock().unlock();
+        LOG.info("Create Block Meta frees write lock, user " + userId + " block " + blockId);
       }
       tempBlock = mAllocator.allocateBlock(userId, blockId, initialBlockSize, location);
       Preconditions.checkNotNull(tempBlock, "Cannot allocate block %s:", blockId);
