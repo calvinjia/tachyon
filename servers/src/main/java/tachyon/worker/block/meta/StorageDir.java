@@ -33,6 +33,7 @@ import com.google.common.collect.Sets;
 
 import tachyon.Constants;
 import tachyon.StorageDirId;
+import tachyon.worker.block.BlockStoreLocation;
 
 /**
  * Represents a directory in a storage tier. It has a fixed capacity allocated to it on
@@ -412,7 +413,12 @@ public class StorageDir {
         continue;
       }
       userTempBlocks.remove(tempBlockId);
-      mBlockIdToTempBlockMap.remove(tempBlockId);
+      TempBlockMeta tempBlockMeta = mBlockIdToTempBlockMap.remove(tempBlockId);
+      if (tempBlockMeta != null) {
+        reclaimSpace(tempBlockMeta.getBlockSize(), false);
+      } else {
+        LOG.error("Cannot find blockId {} when cleanup userId {}", tempBlockId, userId);
+      }
     }
     if (userTempBlocks.isEmpty()) {
       mUserIdToTempBlockIdsMap.remove(userId);
@@ -439,5 +445,9 @@ public class StorageDir {
       }
     }
     return userTempBlocks;
+  }
+
+  public BlockStoreLocation toBlockStoreLocation() {
+    return new BlockStoreLocation(mTier.getTierAlias(), mTier.getTierLevel(), mDirIndex);
   }
 }
