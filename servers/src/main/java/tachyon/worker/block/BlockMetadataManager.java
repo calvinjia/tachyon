@@ -325,26 +325,27 @@ public class BlockMetadataManager {
   }
 
   /**
-   * Cleans up the meta data of temp blocks created by the given user.
+   * Cleans up the meta data of the given temp block ids
    *
-   * @param userId the ID of the user
-   * @return A list of temp blocks created by the user in this block store
+   * @param userId the ID of the client associated with the temp blocks
+   * @param tempBlockIds the list of temporary block ids to be cleaned up, non temporary block
+   *                     ids will be ignored.
    */
-  public synchronized List<TempBlockMeta> cleanupUser(long userId) {
-    List<TempBlockMeta> ret = new ArrayList<TempBlockMeta>();
+  public synchronized void cleanupUserTempBlocks(long userId, List<Long> tempBlockIds) {
     for (StorageTier tier : mTiers) {
       for (StorageDir dir : tier.getStorageDirs()) {
-        List<TempBlockMeta> blocksToRemove = dir.cleanupUser(userId);
-        if (blocksToRemove != null) {
-          for (TempBlockMeta block : blocksToRemove) {
-            ret.add(block);
-          }
-        }
+        dir.cleanupUserTempBlocks(userId, tempBlockIds);
       }
     }
-    return ret;
   }
 
+  /**
+   * Gets all the temporary blocks associated with a user, empty list is returned if the user has
+   * no temporary blocks.
+   *
+   * @param userId the ID of the user
+   * @return A list of temp blocks associated with the user
+   */
   public synchronized List<TempBlockMeta> getUserTempBlocks(long userId) {
     List<TempBlockMeta> userTempBlocks = new ArrayList<TempBlockMeta>();
     for (StorageTier tier : mTiers) {

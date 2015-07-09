@@ -65,7 +65,7 @@ public class BlockLockManager {
   }
 
   /**
-   * Lock a block if it exists, throw IOException otherwise.
+   * Locks a block if it exists, throws IOException otherwise.
    *
    * @param userId the ID of user
    * @param blockId the ID of block
@@ -74,6 +74,7 @@ public class BlockLockManager {
    * @throws IOException
    */
   public long lockBlock(long userId, long blockId, BlockLockType blockLockType) throws IOException {
+    LOG.info("Locking block for user " + userId + " on block " + blockId);
     // hashing blockId into the range of [0, NUM_LOCKS-1]
     int hashValue = Math.abs(mHashFunc.hashLong(blockId).asInt()) % NUM_LOCKS;
     ClientRWLock blockLock = mLockArray[hashValue];
@@ -84,6 +85,7 @@ public class BlockLockManager {
       lock = blockLock.writeLock();
     }
     lock.lock();
+    LOG.info("Locked block for user " + userId + " on block " + blockId);
     if (!mMetaManager.hasBlockMeta(blockId)) {
       lock.unlock();
       throw new IOException("Failed to lockBlock: no blockId " + blockId + " found");
@@ -109,12 +111,14 @@ public class BlockLockManager {
    */
   public void unlockBlock(long lockId) throws IOException {
     Lock lock;
+    LockRecord record;
+    long userId;
     synchronized (mSharedMapsLock) {
-      LockRecord record = mLockIdToRecordMap.get(lockId);
+      record = mLockIdToRecordMap.get(lockId);
       if (null == record) {
         throw new IOException("Failed to unlockBlock: lockId " + lockId + " has no lock record");
       }
-      long userId = record.userId();
+      userId = record.userId();
       lock = record.lock();
       mLockIdToRecordMap.remove(lockId);
       Set<Long> userLockIds = mUserIdToLockIdsMap.get(userId);
@@ -122,8 +126,10 @@ public class BlockLockManager {
       if (userLockIds.isEmpty()) {
         mUserIdToLockIdsMap.remove(userId);
       }
+      LOG.info("Unlocking block for user " + userId + " on block " + record.blockId());
     }
     lock.unlock();
+    LOG.info("Unlocked block for user " + userId + " on block " + record.blockId());
   }
 
   // TODO: temporary, remove me later.
@@ -225,5 +231,4 @@ public class BlockLockManager {
       return mLock;
     }
   }
-
 }

@@ -393,31 +393,43 @@ public class StorageDir {
   }
 
   /**
-   * Cleans up the temp block meta data of a specific user.
+   * Cleans up the temp block meta data for each block id passed in
    *
-   * @param userId the ID of the user to cleanup
-   * @return A list of temp blocks removed from this dir
+   * @param userId the ID of the client associated with the temporary blocks
+   * @param tempBlockIds the list of temporary blocks to clean up, non temporary blocks or
+   *                     nonexistent blocks will be ignored
    */
-  public List<TempBlockMeta> cleanupUser(long userId) {
-    LOG.info("Cleaning up user " + userId + " for dir " + mDirPath);
-    List<TempBlockMeta> blocksToRemove = new ArrayList<TempBlockMeta>();
+  public void cleanupUserTempBlocks(long userId, List<Long> tempBlockIds) {
     Set<Long> userTempBlocks = mUserIdToTempBlockIdsMap.get(userId);
-    if (userTempBlocks != null) {
-      for (long blockId : userTempBlocks) {
-        TempBlockMeta tempBlock = mBlockIdToTempBlockMap.remove(blockId);
-        if (tempBlock != null) {
-          blocksToRemove.add(tempBlock);
-          reclaimSpace(tempBlock.getBlockSize(), false);
-          LOG.info("Deleted temp block " + tempBlock + " for user " + userId);
-        } else {
-          LOG.error("Cannot find blockId {} when cleanup userId {}", blockId, userId);
-        }
-      }
-      mUserIdToTempBlockIdsMap.remove(userId);
+    // The user's temporary blocks have already been removed.
+    if (userTempBlocks == null) {
+      return;
     }
-    return blocksToRemove;
+    for (Long tempBlockId : tempBlockIds) {
+      if (!mBlockIdToTempBlockMap.containsKey(tempBlockId)) {
+        // This temp block does not exist in this dir, this is expected for some blocks since the
+        // input list is across all dirs
+        continue;
+      }
+      userTempBlocks.remove(tempBlockId);
+      mBlockIdToTempBlockMap.remove(tempBlockId);
+    }
+    if (userTempBlocks.isEmpty()) {
+      mUserIdToTempBlockIdsMap.remove(userId);
+    } else {
+      // This may happen if the client comes back during clean up and creates more blocks or some
+      // temporary blocks failed to be deleted
+      LOG.warn("Blocks still owned by user " + userId + " after cleanup.");
+    }
   }
 
+  /**
+   * Gets the temporary blocks associated with a user in this StorageDir, an empty list is returned
+   * if the user has no temporary blocks in this StorageDir.
+   *
+   * @param userId the ID of the user
+   * @return A list of temporary blocks the user is associated with in this StorageDir
+   */
   public List<TempBlockMeta> getUserTempBlocks(long userId) {
     Set<Long> userTempBlockIds = mUserIdToTempBlockIdsMap.get(userId);
     List<TempBlockMeta> userTempBlocks = new ArrayList<TempBlockMeta>();

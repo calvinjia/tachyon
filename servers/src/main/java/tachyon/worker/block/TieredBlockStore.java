@@ -49,7 +49,6 @@ import tachyon.worker.block.io.BlockWriter;
 import tachyon.worker.block.io.LocalFileBlockReader;
 import tachyon.worker.block.io.LocalFileBlockWriter;
 import tachyon.worker.block.meta.BlockMeta;
-import tachyon.worker.block.meta.BlockMetaBase;
 import tachyon.worker.block.meta.TempBlockMeta;
 
 /**
@@ -185,7 +184,6 @@ public class TieredBlockStore implements BlockStore {
   public void requestSpace(long userId, long blockId, long additionalBytes) throws IOException {
     // TODO: Change the lock to read lock and only upgrade to write lock if necessary
     mEvictionLock.writeLock().lock();
-    LOG.info("Request space holds write lock, user " + userId + " block " + blockId);
     try {
       TempBlockMeta tempBlockMeta = mMetaManager.getTempBlockMeta(blockId);
       freeSpaceInternal(userId, additionalBytes, tempBlockMeta.getBlockLocation());
@@ -194,7 +192,6 @@ public class TieredBlockStore implements BlockStore {
           + additionalBytes);
     } finally {
       mEvictionLock.writeLock().unlock();
-      LOG.info("Request space frees write lock, user " + userId + " block " + blockId);
     }
   }
 
@@ -258,19 +255,17 @@ public class TieredBlockStore implements BlockStore {
   public void freeSpace(long userId, long availableBytes, BlockStoreLocation location)
       throws IOException {
     mEvictionLock.writeLock().lock();
-    LOG.info("Free space holds write lock, user " + userId);
     try {
       freeSpaceInternal(userId, availableBytes, location);
     } finally {
       mEvictionLock.writeLock().unlock();
-      LOG.info("Free space frees write lock, user " + userId);
     }
   }
 
   @Override
   public void cleanupUser(long userId) throws IOException {
-    LOG.info("Cleaning up tiered store for user: " + userId);
     List<TempBlockMeta> tempBlocksToRemove = mMetaManager.getUserTempBlocks(userId);
+    List<Long> removedTempBlocks = new ArrayList<Long>(tempBlocksToRemove.size());
     // TODO: fix the block removing below, there is possible risk condition when the client which
     // is considered "dead" may still be using or committing this block.
     // A user may have multiple temporary directories for temp blocks, in diffrent StorageTier
@@ -287,24 +282,23 @@ public class TieredBlockStore implements BlockStore {
       if (!new File(fileName).delete()) {
         LOG.error("Error in cleanup userId {}: cannot delete file {}", userId, fileName);
       } else {
-        LOG.info("Deleted: " + fileName);
+        removedTempBlocks.add(tempBlockMeta.getBlockId());
       }
     }
     // TODO: Cleanup the user folder across tiered storage.
     for (String dirName : dirs) {
       if (!new File(dirName).delete()) {
-        LOG.error("Error in cleanup userId {}: cannot delete directory ", userId, dirName);
+        LOG.error("Error in cleanup userId {}: cannot delete directory {}", userId, dirName);
       }
     }
 
-    LOG.info("Cleaned up tiered store data, cleaning up metadata for user: " + userId);
-
+    LOG.info("Getting read lock for user cleanup: " + userId);
     mEvictionLock.readLock().lock();
-    LOG.info("Eviction read lock acquired.");
-    mMetaManager.cleanupUser(userId);
-    LOG.info("Cleaned up tiered store metadata, cleaning up locks for user: " + userId);
+    LOG.info("Cleaning metadata for user: " + userId);
+    mMetaManager.cleanupUserTempBlocks(userId, removedTempBlocks);
+    LOG.info("Cleaning locks for user: " + userId);
     mLockManager.cleanupUser(userId);
-    LOG.info("Cleaned up tiered store locks for user: " + userId);
+    LOG.info("Unlocking read lock for user: " + userId);
     mEvictionLock.readLock().unlock();
   }
 
@@ -337,14 +331,12 @@ public class TieredBlockStore implements BlockStore {
       // happen between unlock and lock.
       mEvictionLock.readLock().unlock();
       mEvictionLock.writeLock().lock();
-      LOG.info("Create Block Meta holds write lock, user " + userId + " block " + blockId);
       try {
         freeSpaceInternal(userId, initialBlockSize, location);
       } finally {
         // Downgrade to read lock again after eviction. Lock before unlock is intentional.
         mEvictionLock.readLock().lock();
         mEvictionLock.writeLock().unlock();
-        LOG.info("Create Block Meta frees write lock, user " + userId + " block " + blockId);
       }
       tempBlock = mAllocator.allocateBlock(userId, blockId, initialBlockSize, location);
       Preconditions.checkNotNull(tempBlock, "Cannot allocate block %s:", blockId);
@@ -398,7 +390,7 @@ public class TieredBlockStore implements BlockStore {
     mMetaManager.abortTempBlockMeta(tempBlockMeta);
   }
 
-  // Move a block. This method requires block lock in WRITE mode and eviction lock in READ mode.
+  /** Move a block. This method requires block lock in WRITE mode and eviction lock in READ mode */
   private void moveBlockNoLock(long blockId, BlockStoreLocation newLocation) throws IOException {
     if (mMetaManager.hasTempBlockMeta(blockId)) {
       throw new IOException("Failed to move block " + blockId + ": block is uncommited");
@@ -412,7 +404,9 @@ public class TieredBlockStore implements BlockStore {
     mMetaManager.moveBlockMeta(blockMeta, newLocation);
   }
 
-  // Remove a block. This method requires block lock in WRITE mode and eviction lock in READ mode.
+  /**
+   * Remove a block. This method requires block lock in WRITE mode and eviction lock in READ mode.
+   */
   private void removeBlockNoLock(long userId, long blockId) throws IOException {
     if (!mMetaManager.hasBlockMeta(blockId)) {
       throw new IOException("Failed to remove block " + blockId + ": block is not found");
@@ -426,25 +420,21 @@ public class TieredBlockStore implements BlockStore {
     mMetaManager.removeBlockMeta(blockMeta);
   }
 
-  // This method must be guarded by WRITE lock of mEvictionLock
+  /** This method must be guarded by WRITE lock of mEvictionLock */
   private void freeSpaceInternal(long userId, long availableBytes, BlockStoreLocation location)
       throws IOException {
-    LOG.info("Evictor finding space...");
     EvictionPlan plan = mEvictor.freeSpace(availableBytes, location);
-    LOG.info("The eviction plan is " + plan);
     // Absent plan means failed to evict enough space.
-    if (plan == null) {
+    if (null == plan) {
       throw new IOException("Failed to free space: no eviction plan by evictor");
     }
+    LOG.info("Eviction plan is " + plan);
 
     // 1. remove blocks to make room.
     for (long blockId : plan.toEvict()) {
-      LOG.info("Attempting to lock block " + blockId);
       long lockId = mLockManager.lockBlock(userId, blockId, BlockLockType.WRITE);
-      LOG.info("Write lock acquired");
       try {
         removeBlockNoLock(userId, blockId);
-        LOG.info("Deleted block " + blockId);
         synchronized (mBlockStoreEventListeners) {
           for (BlockStoreEventListener listener : mBlockStoreEventListeners) {
             listener.onRemoveBlockByWorker(userId, blockId);
@@ -454,7 +444,6 @@ public class TieredBlockStore implements BlockStore {
         throw new IOException("Failed to free space: cannot evict block " + blockId);
       } finally {
         mLockManager.unlockBlock(lockId);
-        LOG.info("Unlocked block " + blockId);
       }
     }
     // 2. transfer blocks among tiers.
@@ -495,6 +484,5 @@ public class TieredBlockStore implements BlockStore {
         }
       }
     }
-    LOG.info("Free space complete");
   }
 }
