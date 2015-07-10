@@ -51,7 +51,8 @@ public class GreedyEvictor extends BlockStoreEventListenerBase implements Evicto
   public EvictionPlan freeSpace(long availableBytes, BlockStoreLocation location)
       throws IOException {
     if (true) {
-      return null;
+      return new
+          EvictionPlan(new ArrayList<Pair<Long, BlockStoreLocation>>(), new ArrayList<Long>());
     }
     // 1. Select a StorageDir that has enough capacity for required bytes.
     StorageDir selectedDir = null;
