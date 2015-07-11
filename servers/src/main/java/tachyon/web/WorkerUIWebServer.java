@@ -44,5 +44,6 @@ public class WorkerUIWebServer extends UIWebServer {
         "/downloadLocal");
     mWebAppContext.addServlet(new ServletHolder(new WebInterfaceBrowseLogsServlet(false)),
         "/browseLogs");
+    mWebAppContext.addServlet(new ServletHolder(new WebInterfaceHeaderServlet(conf)), "/header");
   }
 }
