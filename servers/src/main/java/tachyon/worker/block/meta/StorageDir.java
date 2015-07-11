@@ -18,6 +18,7 @@ package tachyon.worker.block.meta;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import com.google.common.collect.Sets;
 
 import tachyon.Constants;
 import tachyon.StorageDirId;
+import tachyon.worker.block.BlockStoreLocation;
 
 /**
  * Represents a directory in a storage tier. It has a fixed capacity allocated to it on
@@ -50,6 +52,7 @@ public class StorageDir {
   /** A map from user ID to the set of temp blocks created by this user */
   private Map<Long, Set<Long>> mUserIdToTempBlockIdsMap;
   private AtomicLong mAvailableBytes;
+  private AtomicLong mCommittedBytes;
   private String mDirPath;
   private int mDirIndex;
   private StorageTier mTier;
@@ -59,6 +62,7 @@ public class StorageDir {
     mDirIndex = dirIndex;
     mCapacityBytes = capacityBytes;
     mAvailableBytes = new AtomicLong(capacityBytes);
+    mCommittedBytes = new AtomicLong(0);
     mDirPath = dirPath;
     mBlockIdToBlockMap = new HashMap<Long, BlockMeta>(200);
     mBlockIdToTempBlockMap = new HashMap<Long, TempBlockMeta>(200);
@@ -90,7 +94,7 @@ public class StorageDir {
   /**
    * Initialize meta data for existing blocks in this StorageDir
    *
-   * Only paths satisfying the contract defined in {@link BlockMetaBase#commitPath()} are legal,
+   * Only paths satisfying the contract defined in {@link BlockMetaBase#commitPath} are legal,
    * should be in format like {dir}/{blockId}. other paths will be deleted.
    *
    * @throws IOException when meta data of existing committed blocks can not be loaded
@@ -129,12 +133,33 @@ public class StorageDir {
     }
   }
 
+  /**
+   * Gets the total capacity of this StorageDir in bytes, which is a constant once this StorageDir
+   * has been initialized.
+   *
+   * @return the total capacity of this StorageDir in bytes.
+   */
   public long getCapacityBytes() {
     return mCapacityBytes;
   }
 
+  /**
+   * Gets the total available capacity of this StorageDir in bytes. This value equals the
+   * total capacity of this StorageDir, minus the used bytes by committed blocks and temp blocks.
+   *
+   * @return available capacity in bytes
+   */
   public long getAvailableBytes() {
     return mAvailableBytes.get();
+  }
+
+  /**
+   * Gets the total size of committed blocks in this StorageDir in bytes.
+   *
+   * @return number of committed bytes.
+   */
+  public long getCommittedBytes() {
+    return mCommittedBytes.get();
   }
 
   public String getDirPath() {
@@ -255,7 +280,7 @@ public class StorageDir {
       throw new IOException("Failed to add BlockMeta: blockId " + blockId + " exists");
     }
     mBlockIdToBlockMap.put(blockId, blockMeta);
-    reserveSpace(blockSize);
+    reserveSpace(blockSize, true);
   }
 
   /**
@@ -285,7 +310,7 @@ public class StorageDir {
     } else {
       userTempBlocks.add(blockId);
     }
-    reserveSpace(blockSize);
+    reserveSpace(blockSize, false);
   }
 
   /**
@@ -301,7 +326,7 @@ public class StorageDir {
     if (deletedBlockMeta == null) {
       throw new IOException("Failed to remove BlockMeta: blockId " + blockId + " not found");
     }
-    reclaimSpace(blockMeta.getBlockSize());
+    reclaimSpace(blockMeta.getBlockSize(), true);
   }
 
   /**
@@ -331,7 +356,7 @@ public class StorageDir {
     if (userBlocks.isEmpty()) {
       mUserIdToTempBlockIdsMap.remove(userId);
     }
-    reclaimSpace(tempBlockMeta.getBlockSize());
+    reclaimSpace(tempBlockMeta.getBlockSize(), false);
   }
 
   /**
@@ -345,45 +370,87 @@ public class StorageDir {
     long oldSize = tempBlockMeta.getBlockSize();
     tempBlockMeta.setBlockSize(newSize);
     if (newSize > oldSize) {
-      reserveSpace(newSize - oldSize);
+      reserveSpace(newSize - oldSize, false);
     } else if (newSize < oldSize) {
       throw new IOException("Shrinking block, not supported!");
     }
   }
 
-  private void reserveSpace(long size) {
+  private void reserveSpace(long size, boolean committed) {
     Preconditions.checkState(size <= mAvailableBytes.get(),
         "Available bytes should always be non-negative ");
     mAvailableBytes.addAndGet(-size);
+    if (committed) {
+      mCommittedBytes.addAndGet(size);
+    }
   }
 
-  private void reclaimSpace(long size) {
+  private void reclaimSpace(long size, boolean committed) {
     Preconditions.checkState(mCapacityBytes >= mAvailableBytes.get() + size,
         "Available bytes should always be less than total capacity bytes");
     mAvailableBytes.addAndGet(size);
+    if (committed) {
+      mCommittedBytes.addAndGet(-size);
+    }
   }
 
   /**
-   * Cleans up the temp block meta data of a specific user.
+   * Cleans up the temp block meta data for each block id passed in
    *
-   * @param userId the ID of the user to cleanup
-   * @return A list of temp blocks removed from this dir
+   * @param userId the ID of the client associated with the temporary blocks
+   * @param tempBlockIds the list of temporary blocks to clean up, non temporary blocks or
+   *                     nonexistent blocks will be ignored
    */
-  public List<TempBlockMeta> cleanupUser(long userId) {
-    List<TempBlockMeta> blocksToRemove = new ArrayList<TempBlockMeta>();
+  public void cleanupUserTempBlocks(long userId, List<Long> tempBlockIds) {
     Set<Long> userTempBlocks = mUserIdToTempBlockIdsMap.get(userId);
-    if (userTempBlocks != null) {
-      for (long blockId : userTempBlocks) {
-        TempBlockMeta tempBlock = mBlockIdToTempBlockMap.remove(blockId);
-        if (tempBlock != null) {
-          blocksToRemove.add(tempBlock);
-          reclaimSpace(tempBlock.getBlockSize());
-        } else {
-          LOG.error("Cannot find blockId {} when cleanup userId {}", blockId, userId);
-        }
-      }
-      mUserIdToTempBlockIdsMap.remove(userId);
+    // The user's temporary blocks have already been removed.
+    if (userTempBlocks == null) {
+      return;
     }
-    return blocksToRemove;
+    for (Long tempBlockId : tempBlockIds) {
+      if (!mBlockIdToTempBlockMap.containsKey(tempBlockId)) {
+        // This temp block does not exist in this dir, this is expected for some blocks since the
+        // input list is across all dirs
+        continue;
+      }
+      userTempBlocks.remove(tempBlockId);
+      TempBlockMeta tempBlockMeta = mBlockIdToTempBlockMap.remove(tempBlockId);
+      if (tempBlockMeta != null) {
+        reclaimSpace(tempBlockMeta.getBlockSize(), false);
+      } else {
+        LOG.error("Cannot find blockId {} when cleanup userId {}", tempBlockId, userId);
+      }
+    }
+    if (userTempBlocks.isEmpty()) {
+      mUserIdToTempBlockIdsMap.remove(userId);
+    } else {
+      // This may happen if the client comes back during clean up and creates more blocks or some
+      // temporary blocks failed to be deleted
+      LOG.warn("Blocks still owned by user " + userId + " after cleanup.");
+    }
+  }
+
+  /**
+   * Gets the temporary blocks associated with a user in this StorageDir, an empty list is returned
+   * if the user has no temporary blocks in this StorageDir.
+   *
+   * @param userId the ID of the user
+   * @return A list of temporary blocks the user is associated with in this StorageDir
+   */
+  public List<TempBlockMeta> getUserTempBlocks(long userId) {
+    Set<Long> userTempBlockIds = mUserIdToTempBlockIdsMap.get(userId);
+
+    if (userTempBlockIds == null || userTempBlockIds.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<TempBlockMeta> userTempBlocks = new ArrayList<TempBlockMeta>();
+    for (long blockId : userTempBlockIds) {
+      userTempBlocks.add(mBlockIdToTempBlockMap.get(blockId));
+    }
+    return userTempBlocks;
+  }
+
+  public BlockStoreLocation toBlockStoreLocation() {
+    return new BlockStoreLocation(mTier.getTierAlias(), mTier.getTierLevel(), mDirIndex);
   }
 }

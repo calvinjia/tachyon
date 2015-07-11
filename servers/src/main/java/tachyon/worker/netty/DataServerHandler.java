@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
-import com.google.common.base.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,10 +31,14 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
 import tachyon.Constants;
+import tachyon.StorageLevelAlias;
 import tachyon.Users;
 import tachyon.conf.TachyonConf;
 import tachyon.network.protocol.RPCBlockRequest;
 import tachyon.network.protocol.RPCBlockResponse;
+import tachyon.network.protocol.RPCBlockWriteRequest;
+import tachyon.network.protocol.RPCBlockWriteResponse;
+import tachyon.network.protocol.RPCErrorResponse;
 import tachyon.network.protocol.RPCMessage;
 import tachyon.network.protocol.RPCRequest;
 import tachyon.network.protocol.RPCResponse;
@@ -44,6 +47,7 @@ import tachyon.network.protocol.databuffer.DataByteBuffer;
 import tachyon.network.protocol.databuffer.DataFileChannel;
 import tachyon.worker.block.BlockDataManager;
 import tachyon.worker.block.io.BlockReader;
+import tachyon.worker.block.io.BlockWriter;
 
 /**
  * This class has the main logic of the read path to process {@link RPCRequest} messages and return
@@ -71,7 +75,12 @@ public final class DataServerHandler extends SimpleChannelInboundHandler<RPCMess
       case RPC_BLOCK_REQUEST:
         handleBlockRequest(ctx, (RPCBlockRequest) msg);
         break;
+      case RPC_BLOCK_WRITE_REQUEST:
+        handleBlockWriteRequest(ctx, (RPCBlockWriteRequest) msg);
+        break;
       default:
+        RPCErrorResponse resp = new RPCErrorResponse(RPCResponse.Status.UNKNOWN_MESSAGE_ERROR);
+        ctx.writeAndFlush(resp);
         throw new IllegalArgumentException("No handler implementation for rpc msg type: "
             + msg.getType());
     }
@@ -93,7 +102,8 @@ public final class DataServerHandler extends SimpleChannelInboundHandler<RPCMess
       lockId = mDataManager.lockBlock(Users.DATASERVER_USER_ID, blockId);
     } catch (IOException ioe) {
       LOG.error("Failed to lock block: " + blockId, ioe);
-      RPCBlockResponse resp = RPCBlockResponse.createErrorResponse(blockId);
+      RPCBlockResponse resp =
+          RPCBlockResponse.createErrorResponse(req, RPCResponse.Status.BLOCK_LOCK_ERROR);
       ChannelFuture future = ctx.writeAndFlush(resp);
       future.addListener(ChannelFutureListener.CLOSE);
       return;
@@ -105,17 +115,18 @@ public final class DataServerHandler extends SimpleChannelInboundHandler<RPCMess
       final long fileLength = reader.getLength();
       validateBounds(req, fileLength);
       final long readLength = returnLength(offset, len, fileLength);
-      ChannelFuture future =
-          ctx.writeAndFlush(new RPCBlockResponse(blockId, offset, readLength, getDataBuffer(req,
-              reader, readLength)));
+      RPCBlockResponse resp =
+          new RPCBlockResponse(blockId, offset, readLength, getDataBuffer(req, reader, readLength),
+              RPCResponse.Status.SUCCESS);
+      ChannelFuture future = ctx.writeAndFlush(resp);
       future.addListener(ChannelFutureListener.CLOSE);
       future.addListener(new ClosableResourceChannelListener(reader));
       mDataManager.accessBlock(Users.DATASERVER_USER_ID, blockId);
       LOG.info("Preparation for responding to remote block request for: " + blockId + " done.");
     } catch (Exception e) {
-      // TODO This is a trick for now. The data may have been removed before remote retrieving.
       LOG.error("The file is not here : " + e.getMessage(), e);
-      RPCBlockResponse resp = RPCBlockResponse.createErrorResponse(blockId);
+      RPCBlockResponse resp =
+          RPCBlockResponse.createErrorResponse(req, RPCResponse.Status.FILE_DNE);
       ChannelFuture future = ctx.writeAndFlush(resp);
       future.addListener(ChannelFutureListener.CLOSE);
       if (reader != null) {
@@ -123,6 +134,54 @@ public final class DataServerHandler extends SimpleChannelInboundHandler<RPCMess
       }
     } finally {
       mDataManager.unlockBlock(lockId);
+    }
+  }
+
+  // TODO: This write request handler is very simple in order to be stateless. Therefore, the block
+  // file is opened and closed for every request. If this is too slow, then this handler should be
+  // optimized to keep state.
+  private void handleBlockWriteRequest(final ChannelHandlerContext ctx,
+      final RPCBlockWriteRequest req) throws IOException {
+    final long userId = req.getUserId();
+    final long blockId = req.getBlockId();
+    final long offset = req.getOffset();
+    final long length = req.getLength();
+    final DataBuffer data = req.getPayloadDataBuffer();
+
+    BlockWriter writer = null;
+    try {
+      req.validate();
+      ByteBuffer buffer = data.getReadOnlyByteBuffer();
+      if (buffer.remaining() <= 0) {
+        throw new IOException("Empty buffer to write.");
+      }
+
+      if (offset == 0) {
+        // This is the first write to the block, so create the temp block file. The file will only
+        // be created if the first write starts at offset 0. This allocates enough space for the
+        // write.
+        mDataManager.createBlockRemote(userId, blockId, StorageLevelAlias.MEM.getValue(), length);
+      } else {
+        // Allocate enough space in the existing temporary block for the write.
+        mDataManager.requestSpace(userId, blockId, length);
+      }
+      writer = mDataManager.getTempBlockWriterRemote(userId, blockId);
+      writer.append(buffer);
+
+      RPCBlockWriteResponse resp = new RPCBlockWriteResponse(userId, blockId, offset, length,
+          RPCResponse.Status.SUCCESS);
+      ChannelFuture future = ctx.writeAndFlush(resp);
+      future.addListener(ChannelFutureListener.CLOSE);
+      future.addListener(new ClosableResourceChannelListener(writer));
+    } catch (Exception e) {
+      LOG.error("Error writing remote block : " + e.getMessage(), e);
+      RPCBlockWriteResponse resp =
+          RPCBlockWriteResponse.createErrorResponse(req, RPCResponse.Status.WRITE_ERROR);
+      ChannelFuture future = ctx.writeAndFlush(resp);
+      future.addListener(ChannelFutureListener.CLOSE);
+      if (writer != null) {
+        writer.close();
+      }
     }
   }
 

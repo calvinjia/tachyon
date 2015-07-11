@@ -15,9 +15,6 @@
 
 package tachyon.network.protocol;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.Shorts;
@@ -31,12 +28,11 @@ import tachyon.worker.DataServerMessage;
  * This represents an RPC request to read a block from a DataServer.
  */
 public class RPCBlockRequest extends RPCRequest {
-  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
-
   private final long mBlockId;
   private final long mOffset;
   private final long mLength;
 
+  // TODO: rename this to RPCBlockReadRequest.
   public RPCBlockRequest(long blockId, long offset, long length) {
     mBlockId = blockId;
     mOffset = offset;
@@ -54,8 +50,6 @@ public class RPCBlockRequest extends RPCRequest {
    * @return The decoded RPCBlockRequest object
    */
   public static RPCBlockRequest decode(ByteBuf in) {
-    // TODO: remove this short when client also uses netty.
-    in.readShort();
     long blockId = in.readLong();
     long offset = in.readLong();
     long length = in.readLong();
@@ -64,15 +58,12 @@ public class RPCBlockRequest extends RPCRequest {
 
   @Override
   public int getEncodedLength() {
-    // TODO: adjust the length when client also uses netty.
-    // 3 longs (mBLockId, mOffset, mLength) + 1 short (DATA_SERVER_REQUEST_MESSAGE)
-    return Longs.BYTES * 3 + Shorts.BYTES;
+    // 3 longs (mBLockId, mOffset, mLength)
+    return Longs.BYTES * 3;
   }
 
   @Override
   public void encode(ByteBuf out) {
-    // TODO: remove this short when client also uses netty.
-    out.writeShort(DataServerMessage.DATA_SERVER_REQUEST_MESSAGE);
     out.writeLong(mBlockId);
     out.writeLong(mOffset);
     out.writeLong(mLength);

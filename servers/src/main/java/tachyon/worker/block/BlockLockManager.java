@@ -17,6 +17,7 @@ package tachyon.worker.block;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -27,6 +28,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 
 import tachyon.Constants;
 
@@ -52,6 +55,8 @@ public class BlockLockManager {
   private final Map<Long, LockRecord> mLockIdToRecordMap = new HashMap<Long, LockRecord>();
   /** To guard access on mLockIdToRecordMap and mUserIdToLockIdsMap */
   private final Object mSharedMapsLock = new Object();
+  /** A hashing function to map blockId to one of the locks */
+  private final HashFunction mHashFunc = Hashing.murmur3_32();
 
   public BlockLockManager(BlockMetadataManager metaManager) {
     mMetaManager = Preconditions.checkNotNull(metaManager);
@@ -61,7 +66,7 @@ public class BlockLockManager {
   }
 
   /**
-   * Lock a block if it exists, throw IOException otherwise.
+   * Locks a block if it exists, throws IOException otherwise.
    *
    * @param userId the ID of user
    * @param blockId the ID of block
@@ -70,8 +75,8 @@ public class BlockLockManager {
    * @throws IOException
    */
   public long lockBlock(long userId, long blockId, BlockLockType blockLockType) throws IOException {
-    // TODO: generate real hashValue on blockID.
-    int hashValue = (int) (blockId % (long) NUM_LOCKS);
+    // hashing blockId into the range of [0, NUM_LOCKS-1]
+    int hashValue = Math.abs(mHashFunc.hashLong(blockId).asInt()) % NUM_LOCKS;
     ClientRWLock blockLock = mLockArray[hashValue];
     Lock lock;
     if (blockLockType == BlockLockType.READ) {
@@ -196,6 +201,21 @@ public class BlockLockManager {
   }
 
   /**
+   * Get a set of currently locked blocks.
+   *
+   * @return a set of locked blocks
+   */
+  public Set<Long> getLockedBlocks() {
+    synchronized (mSharedMapsLock) {
+      Set<Long> set = new HashSet<Long>();
+      for (LockRecord lockRecord : mLockIdToRecordMap.values()) {
+        set.add(lockRecord.blockId());
+      }
+      return set;
+    }
+  }
+
+  /**
    * Inner class to keep record of a lock.
    */
   private class LockRecord {
@@ -221,5 +241,4 @@ public class BlockLockManager {
       return mLock;
     }
   }
-
 }
