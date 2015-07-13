@@ -98,8 +98,10 @@ public final class DataServerHandler extends SimpleChannelInboundHandler<RPCMess
     final long offset = req.getOffset();
     final long len = req.getLength();
     long lockId;
+    LOG.info("Block request for " + blockId);
     try {
       lockId = mDataManager.lockBlock(Users.DATASERVER_USER_ID, blockId);
+      LOG.info("Acquired lock for block " + blockId);
     } catch (IOException ioe) {
       LOG.error("Failed to lock block: " + blockId, ioe);
       RPCBlockResponse resp =
@@ -134,6 +136,7 @@ public final class DataServerHandler extends SimpleChannelInboundHandler<RPCMess
       }
     } finally {
       mDataManager.unlockBlock(lockId);
+      LOG.info("Lock released for " + blockId);
     }
   }
 

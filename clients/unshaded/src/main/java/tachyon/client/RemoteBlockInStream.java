@@ -218,9 +218,15 @@ public class RemoteBlockInStream extends BlockInStream {
     // If we fail to set mCurrentBuffer, we stream the rest from the underfs
     while (bytesLeft > 0 && mAttemptReadFromWorkers && updateCurrentBuffer()) {
       int bytesToRead = (int) Math.min(bytesLeft, mCurrentBuffer.remaining());
+      LOG.info("Bytes left to read: " + bytesToRead);
       mCurrentBuffer.get(b, off, bytesToRead);
       if (mRecache) {
-        mBlockOutStream.write(b, off, bytesToRead);
+        try {
+          mBlockOutStream.write(b, off, bytesToRead);
+        } catch (IOException ioe) {
+          LOG.warn("Recache attempt failed.", ioe);
+          cancelRecache();
+        }
       }
       off += bytesToRead;
       bytesLeft -= bytesToRead;
@@ -385,6 +391,7 @@ public class RemoteBlockInStream extends BlockInStream {
    * @throws IOException
    */
   private boolean updateCurrentBuffer() throws IOException {
+    LOG.info("Updating current buffer");
     long bufferSize =
         mTachyonConf.getBytes(Constants.USER_REMOTE_READ_BUFFER_SIZE_BYTE, 8 * Constants.MB);
     if (mCurrentBuffer != null && mBufferStartPos <= mBlockPos
@@ -410,6 +417,7 @@ public class RemoteBlockInStream extends BlockInStream {
       // The read failed, refresh the block info and try again
       mBlockInfo = mFile.getClientBlockInfo(mBlockIndex);
     }
+    LOG.info("All retries failed, returning false");
     return false;
   }
 }

@@ -189,6 +189,7 @@ public class BlockDataManager {
    * @throws IOException if the block to commit does not exist
    */
   public void commitBlock(long userId, long blockId) throws IOException {
+    LOG.info("Committing block: " + blockId + " for user: " + userId);
     mBlockStore.commitBlock(userId, blockId);
 
     // TODO: Reconsider how to do this without heavy locking
@@ -203,10 +204,12 @@ public class BlockDataManager {
       Long bytesUsedOnTier = storeMeta.getUsedBytesOnTiers().get(loc.tierLevel());
       mMasterClient
           .worker_cacheBlock(mWorkerId, bytesUsedOnTier, storageDirId, blockId, length);
+      LOG.info("Committed block: " + blockId + " for user: " + userId);
     } catch (TException te) {
       throw new IOException("Failed to commit block to master.", te);
     } finally {
       mBlockStore.unlockBlock(userId, blockId);
+      LOG.info("Unlocked block " + blockId);
     }
   }
 
