@@ -15,6 +15,7 @@
 
 package tachyon.client;
 
+import com.google.common.base.Preconditions;
 import tachyon.Constants;
 import tachyon.TachyonURI;
 import tachyon.conf.TachyonConf;
@@ -33,14 +34,26 @@ public final class TachyonClient {
   private static final Object INSTANCE_LOCK = new Object();
   private static TachyonClient sClient = null;
 
+  // private access to the reinitializer of ClientContext
+  private static ClientContext.ReinitializerAccesser sReinitializerAccesser =
+      new ClientContext.ReinitializerAccesser() {
+        @Override
+        public void receiveAccess(ClientContext.PrivateReinitializer access) {
+          sReinitializer = access;
+        }
+      };
+  private static ClientContext.PrivateReinitializer sReinitializer;
+
   private final InetSocketAddress mMasterAddress;
   private final TachyonConf mTachyonConf;
-  private final TachyonURI mMaster;
 
   private TachyonClient(TachyonURI master, TachyonConf conf) {
     mMasterAddress = new InetSocketAddress(master.getHost(), master.getPort());
     mTachyonConf = conf;
-    mMaster = master;
+
+    // TODO(calvin): Do this in a cleaner way
+    mTachyonConf.set(Constants.MASTER_ADDRESS, master.getAuthority());
+    sReinitializer.reinitializeWithConf(conf);
   }
 
   public static TachyonClient get() {
@@ -62,6 +75,14 @@ public final class TachyonClient {
         }
       }
     }
+    Preconditions.checkArgument(sClient.masterEquals(master), "Tachyon client has already been "
+        + "initialized to a different master address.");
     return sClient;
+  }
+
+  public boolean masterEquals(TachyonURI otherMaster) {
+    InetSocketAddress otherMasterAddress =
+        new InetSocketAddress(otherMaster.getHost(), otherMaster.getPort());
+    return mMasterAddress.equals(otherMasterAddress);
   }
 }
