@@ -15,13 +15,15 @@
 
 package tachyon.client;
 
+import java.net.InetSocketAddress;
+
 import com.google.common.base.Preconditions;
+
 import tachyon.Constants;
 import tachyon.TachyonURI;
 import tachyon.client.file.TachyonFileSystem;
 import tachyon.conf.TachyonConf;
 
-import java.net.InetSocketAddress;
 
 /**
  * Entry point for interacting with the Tachyon system. The TachyonClient provides the means to

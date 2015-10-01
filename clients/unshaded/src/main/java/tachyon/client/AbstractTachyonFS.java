@@ -31,6 +31,8 @@ abstract class AbstractTachyonFS implements TachyonFSCore {
 
   protected AbstractTachyonFS(TachyonConf tachyonConf) {
     mTachyonConf = tachyonConf;
+    TachyonURI master = new TachyonURI(mTachyonConf.get(Constants.MASTER_ADDRESS));
+    TachyonClient.get(master, tachyonConf);
   }
 
   /**
