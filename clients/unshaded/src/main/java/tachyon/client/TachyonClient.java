@@ -18,6 +18,7 @@ package tachyon.client;
 import com.google.common.base.Preconditions;
 import tachyon.Constants;
 import tachyon.TachyonURI;
+import tachyon.client.file.TachyonFileSystem;
 import tachyon.conf.TachyonConf;
 
 import java.net.InetSocketAddress;
@@ -46,13 +47,16 @@ public final class TachyonClient {
 
   private final InetSocketAddress mMasterAddress;
   private final TachyonConf mTachyonConf;
+  private final TachyonFileSystem mTachyonFileSystem;
 
   private TachyonClient(TachyonURI master, TachyonConf conf) {
     mMasterAddress = new InetSocketAddress(master.getHost(), master.getPort());
     mTachyonConf = conf;
+    mTachyonFileSystem = TachyonFileSystem.TachyonFileSystemFactory.get();
 
     // TODO(calvin): Do this in a cleaner way
     mTachyonConf.set(Constants.MASTER_ADDRESS, master.getAuthority());
+    ClientContext.accessReinitializer(sReinitializerAccesser);
     sReinitializer.reinitializeWithConf(conf);
   }
 
@@ -80,7 +84,11 @@ public final class TachyonClient {
     return sClient;
   }
 
-  public boolean masterEquals(TachyonURI otherMaster) {
+  public TachyonFileSystem getFileSystem() {
+    return mTachyonFileSystem;
+  }
+
+  private boolean masterEquals(TachyonURI otherMaster) {
     InetSocketAddress otherMasterAddress =
         new InetSocketAddress(otherMaster.getHost(), otherMaster.getPort());
     return mMasterAddress.equals(otherMasterAddress);
