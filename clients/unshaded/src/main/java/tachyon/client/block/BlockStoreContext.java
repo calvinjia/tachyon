@@ -43,6 +43,7 @@ public enum BlockStoreContext {
 
   private BlockMasterClientPool mBlockMasterClientPool;
   private BlockWorkerClientPool mLocalBlockWorkerClientPool;
+  private boolean checkedLocal;
   private final ExecutorService mRemoteBlockWorkerExecutor;
 
   /**
@@ -54,16 +55,7 @@ public enum BlockStoreContext {
         .getInt(Constants.USER_REMOTE_BLOCK_WORKER_CLIENT_THREADS);
     mRemoteBlockWorkerExecutor = Executors.newFixedThreadPool(capacity,
         ThreadFactoryUtils.build("remote-block-worker-heartbeat-%d", true));
-
-    NetAddress localWorkerAddress =
-        getWorkerAddress(NetworkAddressUtils.getLocalHostName(ClientContext.getConf()));
-
-    // If the local worker is not available, do not initialize the local worker client pool.
-    if (localWorkerAddress == null) {
-      mLocalBlockWorkerClientPool = null;
-    } else {
-      mLocalBlockWorkerClientPool = new BlockWorkerClientPool(localWorkerAddress);
-    }
+    checkedLocal = false;
   }
 
   /**
@@ -119,7 +111,7 @@ public enum BlockStoreContext {
    * @return a WorkerClient to a worker in the Tachyon system
    */
   public WorkerClient acquireWorkerClient() {
-    if (mLocalBlockWorkerClientPool != null) {
+    if (hasLocalWorker()) {
       return mLocalBlockWorkerClientPool.acquire();
     } else {
       // Get a worker client for any worker in the system.
@@ -136,7 +128,7 @@ public enum BlockStoreContext {
    */
   public WorkerClient acquireWorkerClient(String hostname) {
     if (hostname.equals(NetworkAddressUtils.getLocalHostName(ClientContext.getConf()))) {
-      if (mLocalBlockWorkerClientPool != null) {
+      if (hasLocalWorker()) {
         return mLocalBlockWorkerClientPool.acquire();
       }
       // TODO(calvin): Recover from initial worker failure.
@@ -180,7 +172,7 @@ public enum BlockStoreContext {
     // close the client.
     if (workerClient.isLocal()) {
       // Return local worker client to its resource pool.
-      Preconditions.checkState(mLocalBlockWorkerClientPool != null);
+      Preconditions.checkState(hasLocalWorker());
       mLocalBlockWorkerClientPool.release(workerClient);
     } else {
       // Destroy remote worker client.
@@ -196,6 +188,18 @@ public enum BlockStoreContext {
   // TODO(calvin): Handle the case when the local worker starts up after the client or shuts down
   // before the client does.
   public boolean hasLocalWorker() {
+    if (!checkedLocal) {
+      NetAddress localWorkerAddress =
+          getWorkerAddress(NetworkAddressUtils.getLocalHostName(ClientContext.getConf()));
+
+      // If the local worker is not available, do not initialize the local worker client pool.
+      if (localWorkerAddress == null) {
+        mLocalBlockWorkerClientPool = null;
+      } else {
+        mLocalBlockWorkerClientPool = new BlockWorkerClientPool(localWorkerAddress);
+      }
+      checkedLocal = true;
+    }
     return mLocalBlockWorkerClientPool != null;
   }
 

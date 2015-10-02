@@ -19,6 +19,9 @@ import java.net.InetSocketAddress;
 
 import com.google.common.base.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import tachyon.Constants;
 import tachyon.TachyonURI;
 import tachyon.client.file.TachyonFileSystem;
@@ -34,6 +37,7 @@ import tachyon.conf.TachyonConf;
  * through the getter methods in TachyonClient.
  */
 public final class TachyonClient {
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
   private static final Object INSTANCE_LOCK = new Object();
   private static TachyonClient sClient = null;
 
@@ -52,14 +56,16 @@ public final class TachyonClient {
   private final TachyonFileSystem mTachyonFileSystem;
 
   private TachyonClient(TachyonURI master, TachyonConf conf) {
+    LOG.info("Initializing Tachyon Client");
     mMasterAddress = new InetSocketAddress(master.getHost(), master.getPort());
     mTachyonConf = conf;
     mTachyonFileSystem = TachyonFileSystem.TachyonFileSystemFactory.get();
 
     // TODO(calvin): Do this in a cleaner way
     mTachyonConf.set(Constants.MASTER_ADDRESS, master.getAuthority());
+    LOG.info("Master is set to " + master);
     ClientContext.accessReinitializer(sReinitializerAccesser);
-    sReinitializer.reinitializeWithConf(conf);
+    sReinitializer.reinitializeWithConf(mTachyonConf);
   }
 
   public static TachyonClient get() {

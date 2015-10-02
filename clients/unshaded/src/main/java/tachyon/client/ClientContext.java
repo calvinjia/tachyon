@@ -20,6 +20,9 @@ import java.util.Random;
 
 import com.google.common.base.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import tachyon.Constants;
 import tachyon.client.block.BlockStoreContext;
 import tachyon.client.file.FileSystemContext;
@@ -37,6 +40,9 @@ public final class ClientContext {
    * client.
    */
   private static TachyonConf sTachyonConf;
+
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
+
 
   private static InetSocketAddress sMasterAddress;
 
@@ -120,6 +126,8 @@ public final class ClientContext {
       String masterHostname =
           Preconditions.checkNotNull(sTachyonConf.get(Constants.MASTER_HOSTNAME));
       int masterPort = sTachyonConf.getInt(Constants.MASTER_PORT);
+
+      LOG.info("Reinitialized master to " + masterHostname);
 
       sMasterAddress = new InetSocketAddress(masterHostname, masterPort);
 

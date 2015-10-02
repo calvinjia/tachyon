@@ -17,6 +17,9 @@ package tachyon.client;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import tachyon.Constants;
 import tachyon.TachyonURI;
 import tachyon.conf.TachyonConf;
@@ -28,10 +31,13 @@ import tachyon.conf.TachyonConf;
 @Deprecated
 abstract class AbstractTachyonFS implements TachyonFSCore {
   protected final TachyonConf mTachyonConf;
+  private static final Logger LOG = LoggerFactory.getLogger(Constants.LOGGER_TYPE);
 
   protected AbstractTachyonFS(TachyonConf tachyonConf) {
+    LOG.info("Initializing TachyonFS");
     mTachyonConf = tachyonConf;
     TachyonURI master = new TachyonURI(mTachyonConf.get(Constants.MASTER_ADDRESS));
+    LOG.info("Tachyon master is: " + master);
     TachyonClient.get(master, tachyonConf);
   }
 
