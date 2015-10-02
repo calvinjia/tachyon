@@ -43,7 +43,7 @@ public enum BlockStoreContext {
 
   private BlockMasterClientPool mBlockMasterClientPool;
   private BlockWorkerClientPool mLocalBlockWorkerClientPool;
-  private boolean checkedLocal;
+  private boolean mCheckedLocal;
   private final ExecutorService mRemoteBlockWorkerExecutor;
 
   /**
@@ -55,7 +55,7 @@ public enum BlockStoreContext {
         .getInt(Constants.USER_REMOTE_BLOCK_WORKER_CLIENT_THREADS);
     mRemoteBlockWorkerExecutor = Executors.newFixedThreadPool(capacity,
         ThreadFactoryUtils.build("remote-block-worker-heartbeat-%d", true));
-    checkedLocal = false;
+    mCheckedLocal = false;
   }
 
   /**
@@ -188,7 +188,7 @@ public enum BlockStoreContext {
   // TODO(calvin): Handle the case when the local worker starts up after the client or shuts down
   // before the client does.
   public boolean hasLocalWorker() {
-    if (!checkedLocal) {
+    if (!mCheckedLocal) {
       NetAddress localWorkerAddress =
           getWorkerAddress(NetworkAddressUtils.getLocalHostName(ClientContext.getConf()));
 
@@ -198,7 +198,7 @@ public enum BlockStoreContext {
       } else {
         mLocalBlockWorkerClientPool = new BlockWorkerClientPool(localWorkerAddress);
       }
-      checkedLocal = true;
+      mCheckedLocal = true;
     }
     return mLocalBlockWorkerClientPool != null;
   }
