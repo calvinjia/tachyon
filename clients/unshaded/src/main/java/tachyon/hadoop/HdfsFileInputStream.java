@@ -153,6 +153,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
         mCurrentPosition ++;
         return ret;
       } catch (IOException e) {
+        LOG.warn("Exception caught in read() pos: " + mCurrentPosition);
         LOG.error(e.getMessage(), e);
         mTachyonFileInputStream = null;
       }
@@ -181,6 +182,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
         mCurrentPosition += ret;
         return ret;
       } catch (IOException e) {
+        LOG.warn("Exception caught in read(byte[], int, int) pos: " + mCurrentPosition);
         LOG.error(e.getMessage(), e);
         mTachyonFileInputStream = null;
       }
