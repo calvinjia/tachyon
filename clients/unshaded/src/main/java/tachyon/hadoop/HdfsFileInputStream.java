@@ -159,7 +159,9 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
       }
     }
     getHdfsInputStream();
-    return readFromHdfsBuffer();
+    int res = readFromHdfsBuffer();
+    LOG.info("Returning res: " + res);
+    return res;
   }
 
   @Override
@@ -190,6 +192,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
 
     getHdfsInputStream();
     b[off] = (byte) readFromHdfsBuffer();
+    LOG.info("Returning byte: " + b[off]);
     if (b[off] == -1) {
       return -1;
     }
