@@ -119,6 +119,11 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
 
   private void getHdfsInputStream() throws IOException {
     if (mHdfsInputStream == null) {
+      try {
+        throw new IOException("?");
+      } catch (IOException ioe) {
+        LOG.info("getHDFSInputStream: " + ioe);
+      }
       FileSystem fs = mHdfsPath.getFileSystem(mHadoopConf);
       mHdfsInputStream = fs.open(mHdfsPath, mHadoopBufferSize);
       mHdfsInputStream.seek(mCurrentPosition);
