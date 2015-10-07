@@ -141,7 +141,13 @@ public final class FileInStream extends InputStream implements BoundedStream, Se
     int currentOffset = off;
     int bytesLeftToRead = len;
 
+    boolean looped = false;
     while (bytesLeftToRead > 0 && mPos < mFileLength) {
+      if (looped) {
+        LOG.info("Did not read entire request in one read for " + mFileInfo.getName() + " total "
+            + "read is " + len + " left to read " + bytesLeftToRead);
+      }
+      looped = true;
       checkAndAdvanceBlockInStream();
 
       int bytesToRead = (int) Math.min(bytesLeftToRead, mCurrentBlockInStream.remaining());
