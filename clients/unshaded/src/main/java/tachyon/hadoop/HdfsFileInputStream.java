@@ -157,6 +157,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
         if (mStatistics != null && ret != -1) {
           mStatistics.incrementBytesRead(1);
         }
+        LOG.info("Read one byte: " + ret + " at pos " + mCurrentPosition);
         mCurrentPosition ++;
         return ret;
       } catch (IOException e) {
