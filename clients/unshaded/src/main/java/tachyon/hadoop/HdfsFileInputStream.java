@@ -49,6 +49,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
   private int mHadoopBufferSize;
   private Statistics mStatistics;
   private TachyonFile mTachyonFile;
+  private int mId;
 
   private FSDataInputStream mHdfsInputStream = null;
 
@@ -93,6 +94,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
     }
     mTachyonFile.setUFSConf(mHadoopConf);
     mTachyonFileInputStream = mTachyonFile.getInStream(ReadType.CACHE);
+    mId = (int) (Math.random() * 10000);
   }
 
   /**
@@ -179,7 +181,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
     if (mClosed) {
       throw new IOException("Cannot read from a closed stream.");
     }
-    LOG.info("Read at position " + mCurrentPosition + " len: " + len);
+    LOG.info("Read at position " + mCurrentPosition + " len: " + len + " id: " + mId);
     if (mTachyonFileInputStream != null) {
       int ret = 0;
       try {
@@ -190,7 +192,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
         mCurrentPosition += ret;
         return ret;
       } catch (IOException e) {
-        LOG.warn("Exception caught in read(byte[], int, int) pos: " + mCurrentPosition
+        LOG.warn("Exception caught in read(byte[], int, int) pos: " + mCurrentPosition + " id" + mId
             + "current offset: " + off + " current length: " + len + " file " + mHdfsPath);
         LOG.error(e.getMessage(), e);
         mTachyonFileInputStream = null;
@@ -200,7 +202,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
     getHdfsInputStream();
     b[off] = (byte) readFromHdfsBuffer();
     LOG.info("Returning byte: " + b[off] + " off: "  + off + " length: " + len + " bt "
-        + b.length + " file: " + mHdfsPath);
+        + b.length + " file: " + mHdfsPath + " id " + mId);
     if (b[off] == Integer.MIN_VALUE) {
       return -1;
     }
