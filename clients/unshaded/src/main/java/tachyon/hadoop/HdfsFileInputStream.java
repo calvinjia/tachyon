@@ -203,7 +203,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
     getHdfsInputStream();
     b[off] = (byte) readFromHdfsBuffer();
     LOG.info("Returning byte: " + b[off] + " off: "  + off + " length: " + len + " bt "
-        + b.length + " file: " + mHdfsPath + " id " + mId);
+        + b.length + " file: " + mHdfsPath + " id " + mId + " current pos: " + mCurrentPosition);
     if (b[off] == Integer.MIN_VALUE) {
       return -1;
     }
