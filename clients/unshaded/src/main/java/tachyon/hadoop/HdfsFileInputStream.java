@@ -179,6 +179,7 @@ public class HdfsFileInputStream extends InputStream implements Seekable, Positi
     if (mClosed) {
       throw new IOException("Cannot read from a closed stream.");
     }
+    LOG.info("Read at position " + mCurrentPosition + " len: " + len);
     if (mTachyonFileInputStream != null) {
       int ret = 0;
       try {
