@@ -304,6 +304,10 @@ abstract class AbstractTFS extends FileSystem {
       LOG.info("File does not exist: " + path);
       throw new FileNotFoundException("File does not exist: " + path);
     }
+    if (file == null) {
+      LOG.info("File does not exist: " + path);
+      throw new FileNotFoundException("File does not exist: " + path);
+    }
 
     FileStatus ret =
         new FileStatus(file.length(), file.isDirectory(), file.getDiskReplication(),
