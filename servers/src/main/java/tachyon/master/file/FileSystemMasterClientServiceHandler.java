@@ -233,4 +233,13 @@ public final class FileSystemMasterClientServiceHandler implements
       throw new ThriftIOException(e.getMessage());
     }
   }
+
+  @Override
+  public void scheduleAsyncPersist(long fileId) throws TachyonTException {
+    try {
+      mFileSystemMaster.scheduleAsyncPersistence(fileId);
+    } catch (FileDoesNotExistException e) {
+      throw e.toTachyonTException();
+    }
+  }
 }

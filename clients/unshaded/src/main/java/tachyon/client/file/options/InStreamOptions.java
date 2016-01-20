@@ -89,6 +89,13 @@ public final class InStreamOptions {
   }
 
   /**
+   * @return the location policy for CACHE type of read
+   */
+  public FileWriteLocationPolicy getLocationPolicy() {
+    return mLocationPolicy;
+  }
+
+  /**
    * @return the name : value pairs for all the fields
    */
   @Override

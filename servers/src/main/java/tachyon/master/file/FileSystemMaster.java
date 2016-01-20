@@ -1837,5 +1837,38 @@ public final class FileSystemMaster extends MasterBase {
         }
       }
     }
+
+    @Override
+    public void close() {
+      // Nothing to clean up
+    }
+  }
+
+  /**
+   * Lost files periodic check.
+   */
+  private final class LostFilesDetectionHeartbeatExecutor implements HeartbeatExecutor {
+    @Override
+    public void heartbeat() {
+      for (long fileId : getLostFiles()) {
+        // update the state
+        synchronized (mInodeTree) {
+          Inode inode;
+          try {
+            inode = mInodeTree.getInodeById(fileId);
+            if (inode.getPersistenceState() != PersistenceState.PERSISTED) {
+              inode.setPersistenceState(PersistenceState.LOST);
+            }
+          } catch (FileDoesNotExistException e) {
+            LOG.error("Exception trying to get inode from inode tree: {}", e.toString());
+          }
+        }
+      }
+    }
+
+    @Override
+    public void close() {
+      // Nothing to clean up
+    }
   }
 }

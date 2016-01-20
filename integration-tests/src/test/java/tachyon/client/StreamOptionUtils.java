@@ -99,4 +99,15 @@ public final class StreamOptionUtils {
   public static CreateFileOptions getCreateFileOptionsAsync(TachyonConf conf) {
     return CreateFileOptions.defaults().setWriteType(WriteType.ASYNC_THROUGH);
   }
+
+  /**
+   * Gets AsyncWrite {@link OutStreamOptions}.
+   *
+   * @param conf the Tachyon config
+   * @return the {@link OutStreamOptions}
+   */
+  public static OutStreamOptions getOutStreamOptionsWriteAsync(TachyonConf conf) {
+    return new OutStreamOptions.Builder().setTachyonStorageType(TachyonStorageType.STORE)
+        .setUnderStorageType(UnderStorageType.ASYNC_PERSIST).build();
+  }
 }

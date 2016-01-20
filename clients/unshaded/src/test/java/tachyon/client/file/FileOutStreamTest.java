@@ -168,6 +168,14 @@ public class FileOutStreamTest {
   }
 
   /**
+   * Resets the context after a test ran.
+   */
+  @After
+  public void after() {
+    ClientContext.reset();
+  }
+
+  /**
    * Tests that a single byte is written to the out stream correctly.
    *
    * @throws Exception when the write fails

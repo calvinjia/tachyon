@@ -31,6 +31,7 @@ import tachyon.heartbeat.HeartbeatExecutor;
 import tachyon.thrift.CommandType;
 import tachyon.thrift.FileSystemCommand;
 import tachyon.thrift.PersistFile;
+import tachyon.util.ThreadFactoryUtils;
 import tachyon.worker.WorkerIdRegistry;
 import tachyon.worker.block.BlockMasterSync;
 
@@ -55,8 +56,8 @@ final class FileWorkerMasterSyncExecutor implements HeartbeatExecutor {
   /** Client for communicating to file system master */
   private final FileSystemMasterClient mMasterClient;
   /** The thread pool to persist file */
-  private final ExecutorService mFixedExecutionService =
-      Executors.newFixedThreadPool(DEFAULT_FILE_PERSISTER_POOL_SIZE);
+  private final ExecutorService mPersistFileService = Executors.newFixedThreadPool(
+      DEFAULT_FILE_PERSISTER_POOL_SIZE, ThreadFactoryUtils.build("persist-file-service-%d", true));
 
   /**
    * Creates a new instance of {@link FileWorkerMasterSyncExecutor}.
@@ -107,6 +108,11 @@ final class FileWorkerMasterSyncExecutor implements HeartbeatExecutor {
             .execute(new FilePersister(mFileDataManager, fileId, persistFile.blockIds));
       }
     }
+  }
+
+  @Override
+  public void close() {
+    mPersistFileService.shutdown();
   }
 
   /**

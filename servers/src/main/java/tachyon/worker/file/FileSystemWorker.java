@@ -16,8 +16,12 @@
 package tachyon.worker.file;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import org.apache.thrift.TProcessor;
 
 import com.google.common.base.Preconditions;
 

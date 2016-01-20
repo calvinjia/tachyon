@@ -55,4 +55,10 @@ public class LineageFileOutStream extends FileOutStream {
     // do nothing, the scheduling is handled by the lineage master
     return;
   }
+
+  @Override
+  protected void scheduleAsyncPersist() throws IOException {
+    // do nothing, the scheduling is handled by the lineage master
+    return;
+  }
 }

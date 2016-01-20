@@ -16,6 +16,8 @@
 package tachyon.worker.block;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Executors;
 
 import com.google.common.base.Throwables;

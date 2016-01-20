@@ -18,10 +18,7 @@ package tachyon.master;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -67,7 +64,6 @@ public class JournalIntegrationTest {
   private FileSystem mTfs = null;
   private TachyonRawTables mTachyonRawTables = null;
   private TachyonURI mRootUri = new TachyonURI(TachyonURI.SEPARATOR);
-  private final ExecutorService mExecutorService = Executors.newFixedThreadPool(2);
   private TachyonConf mMasterTachyonConf = null;
 
   /**
@@ -150,19 +146,10 @@ public class JournalIntegrationTest {
     fsMaster.stop();
   }
 
-  /**
-   * @throws Exception
-   */
-  @After
-  public final void after() throws Exception {
-    mExecutorService.shutdown();
-  }
-
   @Before
   public final void before() throws Exception {
     mLocalTachyonCluster = mLocalTachyonClusterResource.get();
     mTfs = mLocalTachyonCluster.getClient();
-    mTachyonRawTables = TachyonRawTables.TachyonRawTablesFactory.get();
     mMasterTachyonConf = mLocalTachyonCluster.getMasterTachyonConf();
   }
 
