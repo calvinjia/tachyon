@@ -179,16 +179,17 @@ public class S3UnderFileSystem extends UnderFileSystem {
   }
 
   /**
-   * Gets the block size in bytes. There is no concept of a block in S3, however the maximum allowed
-   * size of one file is currently 5 TB.
+   * Gets the block size in bytes. For a file being read from S3, there is no concept of block
+   * size, but the max file size is 5 TB. This method returns the default block size so S3 files
+   * are more easily managed.
    *
    * @param path the file name
-   * @return 5 TB in bytes
+   * @return the default Alluxio block size
    * @throws IOException this implementation will not throw this exception, but subclasses may
    */
   @Override
   public long getBlockSizeByte(String path) throws IOException {
-    return Constants.TB * 5;
+    return mConfiguration.getBytes(Constants.USER_BLOCK_SIZE_BYTES_DEFAULT);
   }
 
   // Not supported
