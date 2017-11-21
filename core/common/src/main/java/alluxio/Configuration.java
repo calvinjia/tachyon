@@ -95,6 +95,10 @@ public final class Configuration {
       try {
         Class.forName("alluxio.core.client.runtime.io.netty.channel.epoll.Native");
       } catch (Throwable t) {
+        LOG.error("--- Suppressed exceptions: ");
+        for (Throwable s : t.getSuppressed()) {
+          LOG.error("Suppressed", s);
+        }
         LOG.error("Error loading native", t);
       }
       System.setProperty("alluxio.core.client.runtime.io.netty.packagePrefix", "alluxio.core"
