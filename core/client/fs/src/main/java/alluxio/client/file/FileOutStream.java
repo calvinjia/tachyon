@@ -180,18 +180,30 @@ public class FileOutStream extends AbstractOutStream {
 
   @Override
   public void write(int b) throws IOException {
-    writeInternal(b);
+    try {
+      writeInternal(b);
+    } catch (Throwable t) {
+      LOG.error("---- Error in write0", t);
+    }
   }
 
   @Override
   public void write(byte[] b) throws IOException {
     Preconditions.checkArgument(b != null, PreconditionMessage.ERR_WRITE_BUFFER_NULL);
-    writeInternal(b, 0, b.length);
+    try {
+      writeInternal(b, 0, b.length);
+    } catch (Throwable t) {
+      LOG.error("---- Error in write1", t);
+    }
   }
 
   @Override
   public void write(byte[] b, int off, int len) throws IOException {
-    writeInternal(b, off, len);
+    try {
+      writeInternal(b, off, len);
+    } catch (Throwable t) {
+      LOG.error("---- Error in write2", t);
+    }
   }
 
   private void writeInternal(int b) throws IOException {

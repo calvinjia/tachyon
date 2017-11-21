@@ -89,6 +89,22 @@ public final class Configuration {
     Properties systemProps = new Properties();
     systemProps.putAll(System.getProperties());
 
+    // Check if netty is shaded, if so we need to set the package prefix accordingly
+    try {
+      Class.forName("alluxio.core.client.runtime.io.netty.channel.Channel");
+      try {
+        Class.forName("alluxio.core.client.runtime.io.netty.channel.epoll.Native");
+      } catch (Throwable t) {
+        LOG.error("Error loading native", t);
+      }
+      System.setProperty("alluxio.core.client.runtime.io.netty.packagePrefix", "alluxio.core"
+          + ".client.runtime.");
+    } catch (ClassNotFoundException e) {
+      // do nothing
+    }
+
+    LOG.info("--- P: {}", System.getProperty("alluxio.core.client.runtime.io.netty.packagePrefix"));
+
     // Now lets combine, order matters here
     PROPERTIES.clear();
     merge(defaultProps);
