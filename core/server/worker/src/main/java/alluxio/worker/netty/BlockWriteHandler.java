@@ -161,7 +161,7 @@ public final class BlockWriteHandler extends AbstractWriteHandler<BlockWriteRequ
         String metricName = "BytesWrittenAlluxio";
         context.setBlockWriter(
             mWorker.getTempBlockWriterRemote(request.getSessionId(), request.getId()));
-        context.setCounter(MetricsSystem.workerCounter(metricName));
+        context.setCounter(MetricsSystem.counter(metricName));
       }
       Preconditions.checkState(context.getBlockWriter() != null);
       int sz = buf.readableBytes();

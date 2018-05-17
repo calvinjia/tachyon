@@ -15,6 +15,7 @@ import alluxio.AlluxioURI;
 import alluxio.Configuration;
 import alluxio.PropertyKey;
 import alluxio.metrics.sink.Sink;
+import alluxio.util.CommonUtils;
 import alluxio.util.network.NetworkAddressUtils;
 
 import com.codahale.metrics.Counter;
@@ -23,6 +24,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
@@ -38,20 +40,23 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * A MetricsSystem is created by a specific instance(master, worker). It polls the metrics sources
- * periodically and pass the data to the sinks.
- *
- * The syntax of the metrics configuration file is:
- * sink.[name].[options]=[value]
+ * MetricsSystem is a singleton that provides counters, gauges, and timers to the process. These
+ * metrics are pushed to sinks at regular intervals. The MetricsSystem also includes built in
+ * metrics sets (GC and memory usage).
  */
 @ThreadSafe
 public final class MetricsSystem {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsSystem.class);
 
-  // Supported special instance names.
-  public static final String MASTER_INSTANCE = "master";
-  public static final String WORKER_INSTANCE = "worker";
-  public static final String CLIENT_INSTANCE = "client";
+  private static final String CLIENT_INSTANCE = "client";
+  private static final String PROXY_INSTANCE = "proxy";
+  private static final String MASTER_INSTANCE = "master";
+  private static final String WORKER_INSTANCE = "worker";
+  private static final TimeUnit MINIMAL_POLL_UNIT = TimeUnit.SECONDS;
+  private static final int MINIMAL_POLL_PERIOD = 1;
+
+  @VisibleForTesting
+  public static final String SINK_REGEX = "^sink\\.(.+)\\.(.+)";
 
   public static final MetricRegistry METRIC_REGISTRY;
 
@@ -63,10 +68,6 @@ public final class MetricsSystem {
 
   @GuardedBy("MetricsSystem")
   private static List<Sink> sSinks;
-
-  public static final String SINK_REGEX = "^sink\\.(.+)\\.(.+)";
-  private static final TimeUnit MINIMAL_POLL_UNIT = TimeUnit.SECONDS;
-  private static final int MINIMAL_POLL_PERIOD = 1;
 
   /**
    * Starts sinks specified in the configuration. This is an no-op if the sinks have already been
@@ -90,10 +91,11 @@ public final class MetricsSystem {
   }
 
   /**
-   * Starts sinks from a given metrics configuration. This is made public for unit test.
+   * Starts sinks from a given metrics configuration.
    *
    * @param config the metrics config
    */
+  @VisibleForTesting
   public static synchronized void startSinksFromConfig(MetricsConfig config) {
     if (sSinks != null) {
       LOG.info("Sinks have already been started.");
@@ -121,6 +123,18 @@ public final class MetricsSystem {
   }
 
   /**
+   * @return the number of sinks started
+   */
+  @VisibleForTesting
+  public static synchronized int getNumSinks() {
+    int sz = 0;
+    if (sSinks != null) {
+      sz = sSinks.size();
+    }
+    return sz;
+  }
+
+  /**
    * Stops all the sinks.
    */
   public static synchronized void stopSinks() {
@@ -133,14 +147,51 @@ public final class MetricsSystem {
   }
 
   /**
-   * @return the number of sinks started
+   * @param name the basic metric name to create a timer for
+   * @return a timer object associated with the fully qualified name of the metric
    */
-  public static synchronized int getNumSinks() {
-    int sz = 0;
-    if (sSinks != null) {
-      sz = sSinks.size();
+  public static Timer timer(String name) {
+    return METRIC_REGISTRY.timer(getMetricName(name));
+  }
+
+  /**
+   * @param name the basic metric name to create a counter for
+   * @return a counter object associated with the fully qualified name of the metric
+   */
+  public static Counter counter(String name) {
+    return METRIC_REGISTRY.counter(getMetricName(name));
+  }
+
+  /**
+   * Registers a gauge if it has not been registered.
+   *
+   * @param name the basic metric name
+   * @param metric the gauge
+   * @param <T> the type
+   */
+  public static synchronized <T> void registerGaugeIfAbsent(String name, Gauge<T> metric) {
+    if (!METRIC_REGISTRY.getGauges().containsKey(name)) {
+      METRIC_REGISTRY.register(name, metric);
     }
-    return sz;
+  }
+
+  /**
+   * @param name the basic metric name
+   * @return the qualified metric name based on the process type
+   */
+  public static String getMetricName(String name) {
+    switch (CommonUtils.PROCESS_TYPE.get()) {
+      case CLIENT:
+        return getClientMetricName(name);
+      case PROXY:
+        return getProxyMetricName(name);
+      case MASTER:
+        return getMasterMetricName(name);
+      case WORKER:
+        return getWorkerMetricName(name);
+      default:
+        throw new RuntimeException("Invalid Process Type " + CommonUtils.PROCESS_TYPE.get());
+    }
   }
 
   /**
@@ -174,6 +225,16 @@ public final class MetricsSystem {
   }
 
   /**
+   * Builds metric registry name for proxy instance. The pattern is instance.uniqueId.metricName.
+   *
+   * @param name the metric name
+   * @return the metric registry name
+   */
+  public static String getProxyMetricName(String name) {
+    return getMetricNameWithUniqueId(PROXY_INSTANCE, name);
+  }
+
+  /**
    * Builds unique metric registry names with unique ID (set to host name). The pattern is
    * instance.hostname.metricName.
    *
@@ -181,7 +242,7 @@ public final class MetricsSystem {
    * @param name the metric name
    * @return the metric registry name
    */
-  public static String getMetricNameWithUniqueId(String instance, String name) {
+  private static String getMetricNameWithUniqueId(String instance, String name) {
     return Joiner.on(".")
         .join(instance, NetworkAddressUtils.getLocalHostName().replace('.', '_'), name);
   }
@@ -226,66 +287,6 @@ public final class MetricsSystem {
    */
   public static String escape(AlluxioURI uri) {
     return uri.toString().replace("/", "_").replace(".", "_");
-  }
-
-  // Some helper functions.
-
-  /**
-   * @param name the metric name
-   * @return the timer
-   */
-  public static Timer masterTimer(String name) {
-    return METRIC_REGISTRY.timer(getMasterMetricName(name));
-  }
-  /**
-   * @param name the metric name
-   * @return the counter
-   */
-  public static Counter masterCounter(String name) {
-    return METRIC_REGISTRY.counter((getMasterMetricName(name)));
-  }
-
-  /**
-   * @param name the metric name
-   * @return the timer
-   */
-  public static Timer workerTimer(String name) {
-    return METRIC_REGISTRY.timer(getWorkerMetricName(name));
-  }
-  /**
-   * @param name the metric name
-   * @return the counter
-   */
-  public static Counter workerCounter(String name) {
-    return METRIC_REGISTRY.counter((getWorkerMetricName(name)));
-  }
-
-  /**
-   * @param name the metric name
-   * @return the timer
-   */
-  public static Timer clientTimer(String name) {
-    return METRIC_REGISTRY.timer(getClientMetricName(name));
-  }
-  /**
-   * @param name the metric name
-   * @return the counter
-   */
-  public static Counter clientCounter(String name) {
-    return METRIC_REGISTRY.counter(getClientMetricName(name));
-  }
-
-  /**
-   * Registers a gauge if it has not been registered.
-   *
-   * @param name the gauge name
-   * @param metric the gauge
-   * @param <T> the type
-   */
-  public static synchronized <T> void registerGaugeIfAbsent(String name, Gauge<T> metric) {
-    if (!METRIC_REGISTRY.getGauges().containsKey(name)) {
-      METRIC_REGISTRY.register(name, metric);
-    }
   }
 
   /**

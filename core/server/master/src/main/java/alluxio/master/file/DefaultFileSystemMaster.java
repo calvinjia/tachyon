@@ -3724,36 +3724,34 @@ public final class DefaultFileSystemMaster extends AbstractMaster implements Fil
    * {@link alluxio.web.WebInterfaceMasterMetricsServlet}.
    */
   public static final class Metrics {
-    private static final Counter DIRECTORIES_CREATED =
-        MetricsSystem.masterCounter("DirectoriesCreated");
-    private static final Counter FILE_BLOCK_INFOS_GOT =
-        MetricsSystem.masterCounter("FileBlockInfosGot");
-    private static final Counter FILE_INFOS_GOT = MetricsSystem.masterCounter("FileInfosGot");
-    private static final Counter FILES_COMPLETED = MetricsSystem.masterCounter("FilesCompleted");
-    private static final Counter FILES_CREATED = MetricsSystem.masterCounter("FilesCreated");
-    private static final Counter FILES_FREED = MetricsSystem.masterCounter("FilesFreed");
-    private static final Counter FILES_PERSISTED = MetricsSystem.masterCounter("FilesPersisted");
-    private static final Counter NEW_BLOCKS_GOT = MetricsSystem.masterCounter("NewBlocksGot");
-    private static final Counter PATHS_DELETED = MetricsSystem.masterCounter("PathsDeleted");
-    private static final Counter PATHS_MOUNTED = MetricsSystem.masterCounter("PathsMounted");
-    private static final Counter PATHS_RENAMED = MetricsSystem.masterCounter("PathsRenamed");
-    private static final Counter PATHS_UNMOUNTED = MetricsSystem.masterCounter("PathsUnmounted");
+    private static final Counter DIRECTORIES_CREATED = MetricsSystem.counter("DirectoriesCreated");
+    private static final Counter FILE_BLOCK_INFOS_GOT = MetricsSystem.counter("FileBlockInfosGot");
+    private static final Counter FILE_INFOS_GOT = MetricsSystem.counter("FileInfosGot");
+    private static final Counter FILES_COMPLETED = MetricsSystem.counter("FilesCompleted");
+    private static final Counter FILES_CREATED = MetricsSystem.counter("FilesCreated");
+    private static final Counter FILES_FREED = MetricsSystem.counter("FilesFreed");
+    private static final Counter FILES_PERSISTED = MetricsSystem.counter("FilesPersisted");
+    private static final Counter NEW_BLOCKS_GOT = MetricsSystem.counter("NewBlocksGot");
+    private static final Counter PATHS_DELETED = MetricsSystem.counter("PathsDeleted");
+    private static final Counter PATHS_MOUNTED = MetricsSystem.counter("PathsMounted");
+    private static final Counter PATHS_RENAMED = MetricsSystem.counter("PathsRenamed");
+    private static final Counter PATHS_UNMOUNTED = MetricsSystem.counter("PathsUnmounted");
 
     // TODO(peis): Increment the RPCs OPs at the place where we receive the RPCs.
-    private static final Counter COMPLETE_FILE_OPS = MetricsSystem.masterCounter("CompleteFileOps");
+    private static final Counter COMPLETE_FILE_OPS = MetricsSystem.counter("CompleteFileOps");
     private static final Counter CREATE_DIRECTORIES_OPS =
-        MetricsSystem.masterCounter("CreateDirectoryOps");
-    private static final Counter CREATE_FILES_OPS = MetricsSystem.masterCounter("CreateFileOps");
-    private static final Counter DELETE_PATHS_OPS = MetricsSystem.masterCounter("DeletePathOps");
-    private static final Counter FREE_FILE_OPS = MetricsSystem.masterCounter("FreeFileOps");
+        MetricsSystem.counter("CreateDirectoryOps");
+    private static final Counter CREATE_FILES_OPS = MetricsSystem.counter("CreateFileOps");
+    private static final Counter DELETE_PATHS_OPS = MetricsSystem.counter("DeletePathOps");
+    private static final Counter FREE_FILE_OPS = MetricsSystem.counter("FreeFileOps");
     private static final Counter GET_FILE_BLOCK_INFO_OPS =
-        MetricsSystem.masterCounter("GetFileBlockInfoOps");
-    private static final Counter GET_FILE_INFO_OPS = MetricsSystem.masterCounter("GetFileInfoOps");
-    private static final Counter GET_NEW_BLOCK_OPS = MetricsSystem.masterCounter("GetNewBlockOps");
-    private static final Counter MOUNT_OPS = MetricsSystem.masterCounter("MountOps");
-    private static final Counter RENAME_PATH_OPS = MetricsSystem.masterCounter("RenamePathOps");
-    private static final Counter SET_ATTRIBUTE_OPS = MetricsSystem.masterCounter("SetAttributeOps");
-    private static final Counter UNMOUNT_OPS = MetricsSystem.masterCounter("UnmountOps");
+        MetricsSystem.counter("GetFileBlockInfoOps");
+    private static final Counter GET_FILE_INFO_OPS = MetricsSystem.counter("GetFileInfoOps");
+    private static final Counter GET_NEW_BLOCK_OPS = MetricsSystem.counter("GetNewBlockOps");
+    private static final Counter MOUNT_OPS = MetricsSystem.counter("MountOps");
+    private static final Counter RENAME_PATH_OPS = MetricsSystem.counter("RenamePathOps");
+    private static final Counter SET_ATTRIBUTE_OPS = MetricsSystem.counter("SetAttributeOps");
+    private static final Counter UNMOUNT_OPS = MetricsSystem.counter("UnmountOps");
 
     public static final String FILES_PINNED = "FilesPinned";
     public static final String PATHS_TOTAL = "PathsTotal";
