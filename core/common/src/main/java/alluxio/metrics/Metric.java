@@ -235,9 +235,6 @@ public final class Metric implements Serializable {
     }
   }
 
-  private static final ConcurrentHashMap<UserKey, String> sCachedMetrics =
-      new ConcurrentHashMap<>();
-
   /**
    * Gets a metric name with a specific user tag.
    *
@@ -246,13 +243,7 @@ public final class Metric implements Serializable {
    * @return a metric name with the user tagged
    */
   public static String getMetricNameWithUserTag(String metricName, String userName) {
-    UserKey k = new UserKey(metricName, userName);
-    String result = sCachedMetrics.get(k);
-    if (result != null) {
-      return result;
-    }
-    return sCachedMetrics.computeIfAbsent(k, key -> metricName + "." + CommonMetrics.TAG_USER
-        + TAG_SEPARATOR + userName);
+    return metricName + "." + CommonMetrics.TAG_USER + TAG_SEPARATOR + userName;
   }
 
   /**
