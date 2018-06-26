@@ -20,7 +20,6 @@ import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A metric of a given instance. The instance can be master, worker, or client.
@@ -206,33 +205,6 @@ public final class Metric implements Serializable {
       sb.append('.').append(tags[i]).append(TAG_SEPARATOR).append(tags[i + 1]);
     }
     return sb.toString();
-  }
-
-  private static class UserKey {
-    private String mMetric;
-    private String mUser;
-    private UserKey(String metricName, String userName) {
-      mMetric = metricName;
-      mUser = userName;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (!(o instanceof UserKey)) {
-        return false;
-      }
-      UserKey that = (UserKey) o;
-      return Objects.equal(mMetric, that.mMetric)
-          && Objects.equal(mUser, that.mUser);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(mMetric, mUser);
-    }
   }
 
   /**

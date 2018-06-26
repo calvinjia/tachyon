@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -215,7 +214,7 @@ public final class MetricsSystem {
    * @return the metric registry name
    */
   private static String getMasterMetricName(String name) {
-    return InstanceType.MASTER.toString() + "." + name;
+    return InstanceType.MASTER + "." + name;
   }
 
   /**
