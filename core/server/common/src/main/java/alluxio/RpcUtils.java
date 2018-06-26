@@ -22,7 +22,6 @@ import alluxio.security.authentication.AuthenticatedClientUser;
 import alluxio.thrift.AlluxioTException;
 import alluxio.util.SecurityUtils;
 
-import com.codahale.metrics.Timer;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -116,7 +115,7 @@ public final class RpcUtils {
       boolean failureOk, String description, Object... args) throws AlluxioTException {
     // avoid string format for better performance if debug is off
     String debugDesc = logger.isDebugEnabled() ? String.format(description, args) : null;
-    try (Timer.Context ctx = MetricsSystem.timer(getQualifiedMetricName(methodName)).time()) {
+    try {
       logger.debug("Enter: {}: {}", methodName, debugDesc);
       T ret = callable.call();
       logger.debug("Exit (OK): {}: {}", methodName, debugDesc);
@@ -214,7 +213,7 @@ public final class RpcUtils {
       throws AlluxioTException {
     // avoid string format for better performance if debug is off
     String debugDesc = logger.isDebugEnabled() ? String.format(description, args) : null;
-    try (Timer.Context ctx = MetricsSystem.timer(getQualifiedMetricName(methodName)).time()) {
+    try {
       logger.debug("Enter: {}: {}", methodName, debugDesc);
       T ret = callable.call();
       logger.debug("Exit (OK): {}: {}", methodName, debugDesc);
@@ -282,7 +281,7 @@ public final class RpcUtils {
       String methodName, String description, Object... args) {
     // avoid string format for better performance if debug is off
     String debugDesc = logger.isDebugEnabled() ? String.format(description, args) : null;
-    try (Timer.Context ctx = MetricsSystem.timer(getQualifiedMetricName(methodName)).time()) {
+    try {
       logger.debug("Enter: {}: {}", methodName, debugDesc);
       T result = callable.call();
       logger.debug("Exit (OK): {}: {}", methodName, debugDesc);

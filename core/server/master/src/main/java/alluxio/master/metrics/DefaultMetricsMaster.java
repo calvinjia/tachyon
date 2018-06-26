@@ -81,80 +81,17 @@ public class DefaultMetricsMaster extends AbstractMaster implements MetricsMaste
 
   @VisibleForTesting
   protected void addAggregator(SingleValueAggregator aggregator) {
-    mMetricsAggregatorRegistry.put(aggregator.getName(), aggregator);
-    MetricsSystem.registerGaugeIfAbsent(MetricsSystem.getClusterMetricName(aggregator.getName()),
-        new Gauge<Object>() {
-          @Override
-          public Object getValue() {
-            Map<MetricsFilter, Set<Metric>> metrics = new HashMap<>();
-            for (MetricsFilter filter : aggregator.getFilters()) {
-              metrics.put(filter, mMetricsStore
-                  .getMetricsByInstanceTypeAndName(filter.getInstanceType(), filter.getName()));
-            }
-            return aggregator.getValue(metrics);
-          }
-        });
   }
 
   @VisibleForTesting
   protected void addAggregator(MultiValueMetricsAggregator aggregator) {
-    mMultiValueMetricsAggregatorRegistry.add(aggregator);
   }
 
   private void updateMultiValueMetrics() {
-    for (MultiValueMetricsAggregator aggregator : mMultiValueMetricsAggregatorRegistry) {
-      Map<MetricsFilter, Set<Metric>> metrics = new HashMap<>();
-      for (MetricsFilter filter : aggregator.getFilters()) {
-        metrics.put(filter, mMetricsStore.getMetricsByInstanceTypeAndName(filter.getInstanceType(),
-            filter.getName()));
-      }
-      for (Entry<String, Long> entry : aggregator.updateValues(metrics).entrySet()) {
-        MetricsSystem.registerGaugeIfAbsent(entry.getKey(), new Gauge<Object>() {
-          @Override
-          public Object getValue() {
-            return aggregator.getValue(entry.getKey());
-          }
-        });
-      }
-    }
+
   }
 
   private void registerAggregators() {
-    // worker metrics
-    addAggregator(new SumInstancesAggregator(WorkerMetrics.BYTES_READ_ALLUXIO,
-        MetricsSystem.InstanceType.WORKER, WorkerMetrics.BYTES_READ_ALLUXIO));
-    addAggregator(new SumInstancesAggregator(WorkerMetrics.BYTES_READ_ALLUXIO_THROUGHPUT,
-        MetricsSystem.InstanceType.WORKER, WorkerMetrics.BYTES_READ_ALLUXIO_THROUGHPUT));
-    addAggregator(new SumInstancesAggregator(WorkerMetrics.BYTES_READ_UFS_ALL,
-        MetricsSystem.InstanceType.WORKER, WorkerMetrics.BYTES_READ_UFS));
-    addAggregator(new SumInstancesAggregator(WorkerMetrics.BYTES_READ_UFS_THROUGHPUT,
-        MetricsSystem.InstanceType.WORKER, WorkerMetrics.BYTES_READ_UFS_THROUGHPUT));
-
-    addAggregator(new SumInstancesAggregator(WorkerMetrics.BYTES_WRITTEN_ALLUXIO,
-        MetricsSystem.InstanceType.WORKER, WorkerMetrics.BYTES_WRITTEN_ALLUXIO));
-    addAggregator(new SumInstancesAggregator(WorkerMetrics.BYTES_WRITTEN_ALLUXIO_THROUGHPUT,
-        MetricsSystem.InstanceType.WORKER, WorkerMetrics.BYTES_WRITTEN_ALLUXIO_THROUGHPUT));
-    addAggregator(new SumInstancesAggregator(WorkerMetrics.BYTES_WRITTEN_UFS_ALL,
-        MetricsSystem.InstanceType.WORKER, WorkerMetrics.BYTES_WRITTEN_UFS));
-    addAggregator(new SumInstancesAggregator(WorkerMetrics.BYTES_WRITTEN_UFS_THROUGHPUT,
-        MetricsSystem.InstanceType.WORKER, WorkerMetrics.BYTES_WRITTEN_UFS_THROUGHPUT));
-
-    // client metrics
-    addAggregator(new SumInstancesAggregator(ClientMetrics.BYTES_READ_LOCAL,
-        MetricsSystem.InstanceType.CLIENT, ClientMetrics.BYTES_READ_LOCAL));
-    addAggregator(new SumInstancesAggregator(ClientMetrics.BYTES_READ_LOCAL_THROUGHPUT,
-        MetricsSystem.InstanceType.CLIENT, ClientMetrics.BYTES_READ_LOCAL_THROUGHPUT));
-
-    // multi-value aggregators
-    addAggregator(new SingleTagValueAggregator(WorkerMetrics.BYTES_READ_UFS,
-        MetricsSystem.InstanceType.WORKER, WorkerMetrics.BYTES_READ_UFS, WorkerMetrics.TAG_UFS));
-    addAggregator(new SingleTagValueAggregator(WorkerMetrics.BYTES_WRITTEN_UFS,
-        MetricsSystem.InstanceType.WORKER, WorkerMetrics.BYTES_WRITTEN_UFS, WorkerMetrics.TAG_UFS));
-    for (WorkerMetrics.UfsOps ufsOp : WorkerMetrics.UfsOps.values()) {
-      addAggregator(new SingleTagValueAggregator(WorkerMetrics.UFS_OP_PREFIX + ufsOp,
-          MetricsSystem.InstanceType.MASTER, ufsOp.toString(),
-          WorkerMetrics.TAG_UFS));
-    }
   }
 
   @Override
@@ -192,8 +129,7 @@ public class DefaultMetricsMaster extends AbstractMaster implements MetricsMaste
 
   @Override
   public void clientHeartbeat(String clientId, String hostname, List<Metric> metrics) {
-    mMetricsStore.putClientMetrics(hostname, clientId, metrics);
-    updateMultiValueMetrics();
+
   }
 
   @Override
@@ -203,7 +139,6 @@ public class DefaultMetricsMaster extends AbstractMaster implements MetricsMaste
 
   @Override
   public void workerHeartbeat(String hostname, List<Metric> metrics) {
-    mMetricsStore.putWorkerMetrics(hostname, metrics);
-    updateMultiValueMetrics();
+
   }
 }
