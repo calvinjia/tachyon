@@ -280,12 +280,23 @@ final class AlluxioFuseFileSystem extends FuseStubFS {
       if (!mFileSystem.exists(turi)) {
         return -ErrorCodes.ENOENT();
       }
-      final URIStatus status = mFileSystem.getStatus(turi);
-      stat.st_size.set(status.getLength());
+      URIStatus status = mFileSystem.getStatus(turi);
+      if (!status.isCompleted()) {
+        if (!waitForFileCompleted(turi)) {
+          LOG.error("File {} is not completed", path);
+        }
+        status = mFileSystem.getStatus(turi);
+      }
+      long size = status.getLength();
+      long blockSize = status.getBlockSizeBytes();
+      stat.st_size.set(size);
+      // Sets block number and block size to fulfill du command needs
+      stat.st_blksize.set(blockSize);
+      // Does not consider replications
+      stat.st_blocks.set((int) Math.ceil((double) size / blockSize));
 
       final long ctime_sec = status.getLastModificationTimeMs() / 1000;
-      //keeps only the "residual" nanoseconds not caputred in
-      // citme_sec
+      // Keeps only the "residual" nanoseconds not caputred in citme_sec
       final long ctime_nsec = (status.getLastModificationTimeMs() % 1000) * 1000;
 
       stat.st_ctim.tv_sec.set(ctime_sec);
