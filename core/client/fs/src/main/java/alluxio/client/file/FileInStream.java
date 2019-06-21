@@ -166,6 +166,7 @@ public class FileInStream extends InputStream implements BoundedStream, Position
     Preconditions.checkArgument(b != null, PreconditionMessage.ERR_READ_BUFFER_NULL);
     Preconditions.checkArgument(off >= 0 && len >= 0 && len + off <= b.length,
         PreconditionMessage.ERR_BUFFER_STATE.toString(), b.length, off, len);
+    long s1 = System.currentTimeMillis();
     if (len == 0) {
       return 0;
     }
@@ -179,8 +180,12 @@ public class FileInStream extends InputStream implements BoundedStream, Position
     IOException lastException = null;
     while (bytesLeft > 0 && mPosition != mLength && retry.attempt()) {
       try {
+        long s2 = System.currentTimeMillis();
         updateStream();
+        long s3 = System.currentTimeMillis();
+        LOG.info("Took {}ms to update stream.", s3 - s2);
         int bytesRead = mBlockInStream.read(b, currentOffset, bytesLeft);
+        LOG.info("Took {}ms to read {}.", System.currentTimeMillis() - s3, bytesRead);
         if (bytesRead > 0) {
           bytesLeft -= bytesRead;
           currentOffset += bytesRead;
@@ -199,6 +204,7 @@ public class FileInStream extends InputStream implements BoundedStream, Position
     if (lastException != null) {
       throw lastException;
     }
+    LOG.info("Took {}ms to read {}", System.currentTimeMillis() - s1, len - bytesLeft);
     return len - bytesLeft;
   }
 
