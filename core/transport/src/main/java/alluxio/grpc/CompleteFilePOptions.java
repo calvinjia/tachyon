@@ -56,21 +56,8 @@ private static final long serialVersionUID = 0L;
             break;
           }
           case 18: {
-            alluxio.grpc.ScheduleAsyncPersistencePOptions.Builder subBuilder = null;
-            if (((bitField0_ & 0x00000002) == 0x00000002)) {
-              subBuilder = asyncPersistOptions_.toBuilder();
-            }
-            asyncPersistOptions_ = input.readMessage(alluxio.grpc.ScheduleAsyncPersistencePOptions.PARSER, extensionRegistry);
-            if (subBuilder != null) {
-              subBuilder.mergeFrom(asyncPersistOptions_);
-              asyncPersistOptions_ = subBuilder.buildPartial();
-            }
-            bitField0_ |= 0x00000002;
-            break;
-          }
-          case 26: {
             alluxio.grpc.FileSystemMasterCommonPOptions.Builder subBuilder = null;
-            if (((bitField0_ & 0x00000004) == 0x00000004)) {
+            if (((bitField0_ & 0x00000002) == 0x00000002)) {
               subBuilder = commonOptions_.toBuilder();
             }
             commonOptions_ = input.readMessage(alluxio.grpc.FileSystemMasterCommonPOptions.PARSER, extensionRegistry);
@@ -78,7 +65,7 @@ private static final long serialVersionUID = 0L;
               subBuilder.mergeFrom(commonOptions_);
               commonOptions_ = subBuilder.buildPartial();
             }
-            bitField0_ |= 0x00000004;
+            bitField0_ |= 0x00000002;
             break;
           }
         }
@@ -121,43 +108,22 @@ private static final long serialVersionUID = 0L;
     return ufsLength_;
   }
 
-  public static final int ASYNCPERSISTOPTIONS_FIELD_NUMBER = 2;
-  private alluxio.grpc.ScheduleAsyncPersistencePOptions asyncPersistOptions_;
+  public static final int COMMONOPTIONS_FIELD_NUMBER = 2;
+  private alluxio.grpc.FileSystemMasterCommonPOptions commonOptions_;
   /**
-   * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
+   * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
    */
-  public boolean hasAsyncPersistOptions() {
+  public boolean hasCommonOptions() {
     return ((bitField0_ & 0x00000002) == 0x00000002);
   }
   /**
-   * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-   */
-  public alluxio.grpc.ScheduleAsyncPersistencePOptions getAsyncPersistOptions() {
-    return asyncPersistOptions_ == null ? alluxio.grpc.ScheduleAsyncPersistencePOptions.getDefaultInstance() : asyncPersistOptions_;
-  }
-  /**
-   * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-   */
-  public alluxio.grpc.ScheduleAsyncPersistencePOptionsOrBuilder getAsyncPersistOptionsOrBuilder() {
-    return asyncPersistOptions_ == null ? alluxio.grpc.ScheduleAsyncPersistencePOptions.getDefaultInstance() : asyncPersistOptions_;
-  }
-
-  public static final int COMMONOPTIONS_FIELD_NUMBER = 3;
-  private alluxio.grpc.FileSystemMasterCommonPOptions commonOptions_;
-  /**
-   * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
-   */
-  public boolean hasCommonOptions() {
-    return ((bitField0_ & 0x00000004) == 0x00000004);
-  }
-  /**
-   * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+   * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
    */
   public alluxio.grpc.FileSystemMasterCommonPOptions getCommonOptions() {
     return commonOptions_ == null ? alluxio.grpc.FileSystemMasterCommonPOptions.getDefaultInstance() : commonOptions_;
   }
   /**
-   * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+   * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
    */
   public alluxio.grpc.FileSystemMasterCommonPOptionsOrBuilder getCommonOptionsOrBuilder() {
     return commonOptions_ == null ? alluxio.grpc.FileSystemMasterCommonPOptions.getDefaultInstance() : commonOptions_;
@@ -179,10 +145,7 @@ private static final long serialVersionUID = 0L;
       output.writeInt64(1, ufsLength_);
     }
     if (((bitField0_ & 0x00000002) == 0x00000002)) {
-      output.writeMessage(2, getAsyncPersistOptions());
-    }
-    if (((bitField0_ & 0x00000004) == 0x00000004)) {
-      output.writeMessage(3, getCommonOptions());
+      output.writeMessage(2, getCommonOptions());
     }
     unknownFields.writeTo(output);
   }
@@ -198,11 +161,7 @@ private static final long serialVersionUID = 0L;
     }
     if (((bitField0_ & 0x00000002) == 0x00000002)) {
       size += com.google.protobuf.CodedOutputStream
-        .computeMessageSize(2, getAsyncPersistOptions());
-    }
-    if (((bitField0_ & 0x00000004) == 0x00000004)) {
-      size += com.google.protobuf.CodedOutputStream
-        .computeMessageSize(3, getCommonOptions());
+        .computeMessageSize(2, getCommonOptions());
     }
     size += unknownFields.getSerializedSize();
     memoizedSize = size;
@@ -225,11 +184,6 @@ private static final long serialVersionUID = 0L;
       result = result && (getUfsLength()
           == other.getUfsLength());
     }
-    result = result && (hasAsyncPersistOptions() == other.hasAsyncPersistOptions());
-    if (hasAsyncPersistOptions()) {
-      result = result && getAsyncPersistOptions()
-          .equals(other.getAsyncPersistOptions());
-    }
     result = result && (hasCommonOptions() == other.hasCommonOptions());
     if (hasCommonOptions()) {
       result = result && getCommonOptions()
@@ -250,10 +204,6 @@ private static final long serialVersionUID = 0L;
       hash = (37 * hash) + UFSLENGTH_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
           getUfsLength());
-    }
-    if (hasAsyncPersistOptions()) {
-      hash = (37 * hash) + ASYNCPERSISTOPTIONS_FIELD_NUMBER;
-      hash = (53 * hash) + getAsyncPersistOptions().hashCode();
     }
     if (hasCommonOptions()) {
       hash = (37 * hash) + COMMONOPTIONS_FIELD_NUMBER;
@@ -384,7 +334,6 @@ private static final long serialVersionUID = 0L;
     private void maybeForceBuilderInitialization() {
       if (com.google.protobuf.GeneratedMessageV3
               .alwaysUseFieldBuilders) {
-        getAsyncPersistOptionsFieldBuilder();
         getCommonOptionsFieldBuilder();
       }
     }
@@ -392,18 +341,12 @@ private static final long serialVersionUID = 0L;
       super.clear();
       ufsLength_ = 0L;
       bitField0_ = (bitField0_ & ~0x00000001);
-      if (asyncPersistOptionsBuilder_ == null) {
-        asyncPersistOptions_ = null;
-      } else {
-        asyncPersistOptionsBuilder_.clear();
-      }
-      bitField0_ = (bitField0_ & ~0x00000002);
       if (commonOptionsBuilder_ == null) {
         commonOptions_ = null;
       } else {
         commonOptionsBuilder_.clear();
       }
-      bitField0_ = (bitField0_ & ~0x00000004);
+      bitField0_ = (bitField0_ & ~0x00000002);
       return this;
     }
 
@@ -434,14 +377,6 @@ private static final long serialVersionUID = 0L;
       result.ufsLength_ = ufsLength_;
       if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
         to_bitField0_ |= 0x00000002;
-      }
-      if (asyncPersistOptionsBuilder_ == null) {
-        result.asyncPersistOptions_ = asyncPersistOptions_;
-      } else {
-        result.asyncPersistOptions_ = asyncPersistOptionsBuilder_.build();
-      }
-      if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
-        to_bitField0_ |= 0x00000004;
       }
       if (commonOptionsBuilder_ == null) {
         result.commonOptions_ = commonOptions_;
@@ -492,9 +427,6 @@ private static final long serialVersionUID = 0L;
       if (other == alluxio.grpc.CompleteFilePOptions.getDefaultInstance()) return this;
       if (other.hasUfsLength()) {
         setUfsLength(other.getUfsLength());
-      }
-      if (other.hasAsyncPersistOptions()) {
-        mergeAsyncPersistOptions(other.getAsyncPersistOptions());
       }
       if (other.hasCommonOptions()) {
         mergeCommonOptions(other.getCommonOptions());
@@ -559,135 +491,17 @@ private static final long serialVersionUID = 0L;
       return this;
     }
 
-    private alluxio.grpc.ScheduleAsyncPersistencePOptions asyncPersistOptions_ = null;
-    private com.google.protobuf.SingleFieldBuilderV3<
-        alluxio.grpc.ScheduleAsyncPersistencePOptions, alluxio.grpc.ScheduleAsyncPersistencePOptions.Builder, alluxio.grpc.ScheduleAsyncPersistencePOptionsOrBuilder> asyncPersistOptionsBuilder_;
-    /**
-     * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-     */
-    public boolean hasAsyncPersistOptions() {
-      return ((bitField0_ & 0x00000002) == 0x00000002);
-    }
-    /**
-     * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-     */
-    public alluxio.grpc.ScheduleAsyncPersistencePOptions getAsyncPersistOptions() {
-      if (asyncPersistOptionsBuilder_ == null) {
-        return asyncPersistOptions_ == null ? alluxio.grpc.ScheduleAsyncPersistencePOptions.getDefaultInstance() : asyncPersistOptions_;
-      } else {
-        return asyncPersistOptionsBuilder_.getMessage();
-      }
-    }
-    /**
-     * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-     */
-    public Builder setAsyncPersistOptions(alluxio.grpc.ScheduleAsyncPersistencePOptions value) {
-      if (asyncPersistOptionsBuilder_ == null) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
-        asyncPersistOptions_ = value;
-        onChanged();
-      } else {
-        asyncPersistOptionsBuilder_.setMessage(value);
-      }
-      bitField0_ |= 0x00000002;
-      return this;
-    }
-    /**
-     * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-     */
-    public Builder setAsyncPersistOptions(
-        alluxio.grpc.ScheduleAsyncPersistencePOptions.Builder builderForValue) {
-      if (asyncPersistOptionsBuilder_ == null) {
-        asyncPersistOptions_ = builderForValue.build();
-        onChanged();
-      } else {
-        asyncPersistOptionsBuilder_.setMessage(builderForValue.build());
-      }
-      bitField0_ |= 0x00000002;
-      return this;
-    }
-    /**
-     * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-     */
-    public Builder mergeAsyncPersistOptions(alluxio.grpc.ScheduleAsyncPersistencePOptions value) {
-      if (asyncPersistOptionsBuilder_ == null) {
-        if (((bitField0_ & 0x00000002) == 0x00000002) &&
-            asyncPersistOptions_ != null &&
-            asyncPersistOptions_ != alluxio.grpc.ScheduleAsyncPersistencePOptions.getDefaultInstance()) {
-          asyncPersistOptions_ =
-            alluxio.grpc.ScheduleAsyncPersistencePOptions.newBuilder(asyncPersistOptions_).mergeFrom(value).buildPartial();
-        } else {
-          asyncPersistOptions_ = value;
-        }
-        onChanged();
-      } else {
-        asyncPersistOptionsBuilder_.mergeFrom(value);
-      }
-      bitField0_ |= 0x00000002;
-      return this;
-    }
-    /**
-     * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-     */
-    public Builder clearAsyncPersistOptions() {
-      if (asyncPersistOptionsBuilder_ == null) {
-        asyncPersistOptions_ = null;
-        onChanged();
-      } else {
-        asyncPersistOptionsBuilder_.clear();
-      }
-      bitField0_ = (bitField0_ & ~0x00000002);
-      return this;
-    }
-    /**
-     * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-     */
-    public alluxio.grpc.ScheduleAsyncPersistencePOptions.Builder getAsyncPersistOptionsBuilder() {
-      bitField0_ |= 0x00000002;
-      onChanged();
-      return getAsyncPersistOptionsFieldBuilder().getBuilder();
-    }
-    /**
-     * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-     */
-    public alluxio.grpc.ScheduleAsyncPersistencePOptionsOrBuilder getAsyncPersistOptionsOrBuilder() {
-      if (asyncPersistOptionsBuilder_ != null) {
-        return asyncPersistOptionsBuilder_.getMessageOrBuilder();
-      } else {
-        return asyncPersistOptions_ == null ?
-            alluxio.grpc.ScheduleAsyncPersistencePOptions.getDefaultInstance() : asyncPersistOptions_;
-      }
-    }
-    /**
-     * <code>optional .alluxio.grpc.file.ScheduleAsyncPersistencePOptions asyncPersistOptions = 2;</code>
-     */
-    private com.google.protobuf.SingleFieldBuilderV3<
-        alluxio.grpc.ScheduleAsyncPersistencePOptions, alluxio.grpc.ScheduleAsyncPersistencePOptions.Builder, alluxio.grpc.ScheduleAsyncPersistencePOptionsOrBuilder> 
-        getAsyncPersistOptionsFieldBuilder() {
-      if (asyncPersistOptionsBuilder_ == null) {
-        asyncPersistOptionsBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
-            alluxio.grpc.ScheduleAsyncPersistencePOptions, alluxio.grpc.ScheduleAsyncPersistencePOptions.Builder, alluxio.grpc.ScheduleAsyncPersistencePOptionsOrBuilder>(
-                getAsyncPersistOptions(),
-                getParentForChildren(),
-                isClean());
-        asyncPersistOptions_ = null;
-      }
-      return asyncPersistOptionsBuilder_;
-    }
-
     private alluxio.grpc.FileSystemMasterCommonPOptions commonOptions_ = null;
     private com.google.protobuf.SingleFieldBuilderV3<
         alluxio.grpc.FileSystemMasterCommonPOptions, alluxio.grpc.FileSystemMasterCommonPOptions.Builder, alluxio.grpc.FileSystemMasterCommonPOptionsOrBuilder> commonOptionsBuilder_;
     /**
-     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
      */
     public boolean hasCommonOptions() {
-      return ((bitField0_ & 0x00000004) == 0x00000004);
+      return ((bitField0_ & 0x00000002) == 0x00000002);
     }
     /**
-     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
      */
     public alluxio.grpc.FileSystemMasterCommonPOptions getCommonOptions() {
       if (commonOptionsBuilder_ == null) {
@@ -697,7 +511,7 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
-     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
      */
     public Builder setCommonOptions(alluxio.grpc.FileSystemMasterCommonPOptions value) {
       if (commonOptionsBuilder_ == null) {
@@ -709,11 +523,11 @@ private static final long serialVersionUID = 0L;
       } else {
         commonOptionsBuilder_.setMessage(value);
       }
-      bitField0_ |= 0x00000004;
+      bitField0_ |= 0x00000002;
       return this;
     }
     /**
-     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
      */
     public Builder setCommonOptions(
         alluxio.grpc.FileSystemMasterCommonPOptions.Builder builderForValue) {
@@ -723,15 +537,15 @@ private static final long serialVersionUID = 0L;
       } else {
         commonOptionsBuilder_.setMessage(builderForValue.build());
       }
-      bitField0_ |= 0x00000004;
+      bitField0_ |= 0x00000002;
       return this;
     }
     /**
-     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
      */
     public Builder mergeCommonOptions(alluxio.grpc.FileSystemMasterCommonPOptions value) {
       if (commonOptionsBuilder_ == null) {
-        if (((bitField0_ & 0x00000004) == 0x00000004) &&
+        if (((bitField0_ & 0x00000002) == 0x00000002) &&
             commonOptions_ != null &&
             commonOptions_ != alluxio.grpc.FileSystemMasterCommonPOptions.getDefaultInstance()) {
           commonOptions_ =
@@ -743,11 +557,11 @@ private static final long serialVersionUID = 0L;
       } else {
         commonOptionsBuilder_.mergeFrom(value);
       }
-      bitField0_ |= 0x00000004;
+      bitField0_ |= 0x00000002;
       return this;
     }
     /**
-     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
      */
     public Builder clearCommonOptions() {
       if (commonOptionsBuilder_ == null) {
@@ -756,19 +570,19 @@ private static final long serialVersionUID = 0L;
       } else {
         commonOptionsBuilder_.clear();
       }
-      bitField0_ = (bitField0_ & ~0x00000004);
+      bitField0_ = (bitField0_ & ~0x00000002);
       return this;
     }
     /**
-     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
      */
     public alluxio.grpc.FileSystemMasterCommonPOptions.Builder getCommonOptionsBuilder() {
-      bitField0_ |= 0x00000004;
+      bitField0_ |= 0x00000002;
       onChanged();
       return getCommonOptionsFieldBuilder().getBuilder();
     }
     /**
-     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
      */
     public alluxio.grpc.FileSystemMasterCommonPOptionsOrBuilder getCommonOptionsOrBuilder() {
       if (commonOptionsBuilder_ != null) {
@@ -779,7 +593,7 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
-     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 3;</code>
+     * <code>optional .alluxio.grpc.file.FileSystemMasterCommonPOptions commonOptions = 2;</code>
      */
     private com.google.protobuf.SingleFieldBuilderV3<
         alluxio.grpc.FileSystemMasterCommonPOptions, alluxio.grpc.FileSystemMasterCommonPOptions.Builder, alluxio.grpc.FileSystemMasterCommonPOptionsOrBuilder> 
